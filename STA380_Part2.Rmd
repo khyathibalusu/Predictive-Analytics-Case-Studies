@@ -1,0 +1,368 @@
+---
+title: "STA380_Part2"
+author: "Khyathi Balusu(kb42582)"
+date: "8/13/2019"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **Market Segmentation**
+
+### Libraries used
+```{r, echo=FALSE}
+library(dplyr)
+library(ggplot2)
+library(LICORS)
+```
+
+
+### Importing data from the social_marketing.csv file
+```{r}
+data = read.csv("social_marketing.csv", na.strings = '')
+```
+
+## Data Cleaning and checking for null values in the data- False. No null values to drop
+```{r}
+any(is.na(data))
+```
+
+### Removing categories that are slip through
+```{r}
+data=data[,-1]
+data$spam=NULL
+data$chatter=NULL
+data$uncategorized=NULL
+```
+
+### Checking for duplicate values
+```{r,include=FALSE}
+distinct(data)
+```
+
+### Removing labels, centering and scaling
+```{r}
+data = data[-1]
+dataImproved = scale(data, center=TRUE, scale=TRUE)
+```
+
+
+## Correlations
+### Finding the correlations among various variables
+```{r}
+#install.packages("corrplot")
+library(corrplot)
+corOfSegments = cor(dataImproved)
+corrplot(corOfSegments, method='color')
+corOfSegments[abs(corOfSegments) < 0.6] = NA
+corrplot(corOfSegments,method='color')
+```
+
+1. There appears to be an extremely high correlation between personal fitness with health_nutrition
+
+2. There is high correlation among online gaming and college&universities; computers and travel; fashion, beauty and cooking
+
+3. There is a correlation among outdoors, health_nutrition and personal_fitness
+
+## Clustering
+### Extract the centers and scales from the rescaled data (which are named attributes)
+
+### Running k-means clustering with 5 clusters, 100 starts. Chose 5 r as a random figure
+
+```{r}
+set.seed(123456)
+clust1 = kmeans(dataImproved, 5, nstart=100)
+hist(clust1$cluster)
+clust1$size
+clust1$centers
+```
+
+
+```{r}
+#clust1$center  # not super helpful
+#clust1$center[1,]*sigma + mu
+#clust1$center[2,]*sigma + mu
+#clust1$center[4,]*sigma + mu
+```
+
+
+```{r}
+# Which variables are in which clusters?
+#which(clust1$cluster == 1)
+#which(clust1$cluster == 2)
+#which(clust1$cluster == 3)
+#which(clust1$cluster == 4)
+#which(clust1$cluster == 5)
+```
+
+```{r}
+##qplot(chatter, travel, data=data, color=factor(clust1$cluster))
+```
+***
+
+## **kmeans plus plus**
+
+
+
+```{r}
+set.seed(123456)
+clust2 = kmeanspp(dataImproved, k=5, nstart=100)
+hist(clust2$cluster)
+clust2$size
+```
+
+###Data must be standardized (i.e., scaled) to make variables comparable
+
+```{r}
+mu = attr(dataImproved,"scaled:center")
+sigma = attr(dataImproved,"scaled:scale")
+clusters_unscaled = clust2$centers * sigma + mu
+```
+
+
+> Analysis for k =5 (5 clusters)
+ 
+### Cluster 1
+
+```{r}
+library(ggplot2)
+print(paste0("Cluster size1: ",length(which(clust2$cluster==1))))
+rbind(clust2$centers[1, ], clusters_unscaled[1, ])
+```
+
+#### Analysis:
+#### People in this cluster dont seem to have any common interests that stands out. Adult is close to 0 and rest of the centers are negative
+#### Latent factor: No specific factors can be made, adult is the only positive value
+
+```{r}
+qplot(jitter(adult), jitter(tv_film), data=data, color=factor(clust2$cluster),shape = factor(clust2$cluster))
+```
+
+
+### Cluster 2
+
+```{r}
+print(paste0("Cluster size2: ",length(which(clust2$cluster==2))))
+rbind(clust2$centers[2, ], clusters_unscaled[2, ])
+```
+
+#### Analysis:
+1. Fashion
+2. Small Business
+3. School
+
+#### Latent factor: Could be teenages-youngsters people, interested in Fashion, entrepreneurship and School
+
+
+### Cluster 3
+
+```{r}
+print(paste0("Cluster size3: ",length(which(clust2$cluster==3))))
+rbind(clust2$centers[3, ], clusters_unscaled[3, ])
+```
+#### Analysis:
+1. Politics
+2. News
+3. Travel
+
+#### Latent factor: Could be typically middle aged, working folks interested in Politics, news and travel 
+
+```{r}
+qplot(politics, news, data=data, color=factor(clust2$cluster),shape = factor(clust2$cluster))
+qplot(politics, travel, data=data, color=factor(clust2$cluster),shape = factor(clust2$cluster))
+```
+
+The  scatterplot gives out information that  posts on politics, news and travel are put into the green cluster which is 3
+
+# Cluster 4
+
+```{r}
+print(paste0("Cluster size4: ",length(which(clust2$cluster==4))))
+rbind(clust2$centers[4, ], clusters_unscaled[4, ])
+```
+
+#### Analysis:
+1. Religion
+2. Parenting
+3. Sports Fandom
+
+#### Latent factor: Could be  young/new/middle aged parents, tweeting on religion, parenting and travel 
+
+# Cluster 5
+
+```{r}
+print(paste0("Cluster size5: ",length(which(clust2$cluster==5))))
+rbind(clust2$centers[5, ], clusters_unscaled[5, ])
+```
+
+#### Analysis:
+1. Personal fitness
+2. Health nutrition
+3. Outdoors
+
+#### Latent factor: Could be  young, fitness enthusiastic people, tweeting on fitness, nutrition and outdoors
+
+### **K =5 gave us only few segregations, with no specific common triats.**
+### To make a more reasonable analysis, K= 9 is being chosen
+ 
+
+***
+
+## K=9
+
+```{r}
+clust3 = kmeanspp(dataImproved, k=9, nstart=100)
+hist(clust3$cluster)
+clust3$size
+clusters_unscaled1 = clust3$centers * sigma + mu
+```
+Cluster size now is 3360
+
+### Cluster 1
+
+```{r}
+print(paste0("Cluster size1: ",length(which(clust3$cluster==1))))
+rbind(clust3$centers[1, ], clusters_unscaled1[1, ])
+```
+#### Analysis:
+1. Sports fandom
+2. Food
+3. Family
+
+#### Latent factor: Could be  young/middle aged people, tweeting on sports teams, food and family
+
+### Cluster 2
+
+```{r}
+print(paste0("Cluster size2: ",length(which(clust3$cluster==2))))
+rbind(clust3$centers[2, ], clusters_unscaled1[2, ])
+```
+
+#### Analysis:
+1. News
+2. Automotive
+3. Politics
+
+#### Latent factor: Could be  middle aged guys (not doing a gender-stereotyping here), tweeting on news, automotives and politics
+
+### Cluster 3
+
+```{r}
+print(paste0("Cluster size3: ",length(which(clust3$cluster==3))))
+rbind(clust3$centers[3, ], clusters_unscaled1[3, ])
+```
+
+#### Analysis:
+1. Online gaming
+2. College and University
+3. Sports playing
+
+#### Latent factor: Could be  teenagers /young guys (not doing a gender-stereotyping here), tweeting on gaming, college/university and sports
+
+### Cluster 4
+
+```{r}
+print(paste0("Cluster size4: ",length(which(clust3$cluster==4))))
+rbind(clust3$centers[4, ], clusters_unscaled1[4, ])
+```
+
+#### Analysis
+
+#### People in this cluster dont seem to have any common interests that stands out. Adult is close to 0 and rest of the centers are negative
+
+####Latent factor: No specific factors can be made, adult is the only positive value
+
+### Cluster 5
+
+```{r}
+print(paste0("Cluster size5: ",length(which(clust3$cluster==5))))
+rbind(clust3$centers[5, ], clusters_unscaled1[5, ])
+```
+#### Analysis:
+1. Shopping
+2. Photo sharing
+3. Business
+
+#### Latent factor: Could be  teenagers /young girls/guys (not doing a gender-stereotyping here), tweeting on shopping, sharing photos and business
+
+### Cluster 6
+
+```{r}
+print(paste0("Cluster size5: ",length(which(clust3$cluster==6))))
+rbind(clust3$centers[6, ], clusters_unscaled1[6, ])
+```
+
+#### Analysis:
+1. Health and nutrition
+2. Personal Fitness
+3. Outdoors
+
+#### Latent factor: Could be  young guys/girls (not doing a gender-stereotyping here), tweeting on health, fitness and outdoors
+
+### Cluster 7
+
+```{r}
+print(paste0("Cluster size7: ",length(which(clust3$cluster==7))))
+rbind(clust3$centers[7, ], clusters_unscaled1[7, ])
+```
+
+#### Analysis:
+1. Travel
+2. Politics
+3. Computers
+
+#### Latent factor: Could be  young/middle aged folks, tweeting on travel, politics and computers
+
+### Cluster 8
+
+```{r}
+print(paste0("Cluster size8: ",length(which(clust3$cluster==8))))
+rbind(clust3$centers[8, ], clusters_unscaled1[8, ])
+```
+
+#### Analysis:
+1. Cooking
+2. Fashion
+3. Beauty
+
+#### Latent factor: Could be  young guys/girls (not doing a gender-stereotyping here), tweeting on cooking, fashion and beauty
+
+### Cluster 9
+
+```{r}
+print(paste0("Cluster size9: ",length(which(clust3$cluster==9))))
+rbind(clust3$centers[9, ], clusters_unscaled1[9, ])
+```
+
+#### Analysis:
+1. Tv and film
+2. Art
+3. Music
+
+#### Latent factor: Could be  art enthusiasts, tweeting on Tv,film, art and music
+
+> ## Conclusion: 
+## 1. 9 clusters offered us a better analysis over this data
+## 2. Most commonly found topics were:
+## + Personal fitness
+## + Fashion
+## + Sports Fandom
+## + Politics
+
+```{r, include=FALSE}
+clust1$withinss
+clust2$withinss
+sum(clust1$withinss)
+sum(clust2$withinss)
+clust1$tot.withinss
+clust2$tot.withinss
+clust1$betweenss
+clust2$betweenss
+
+```
+
