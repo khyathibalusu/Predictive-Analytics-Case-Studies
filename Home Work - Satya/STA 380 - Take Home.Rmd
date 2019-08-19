@@ -1,0 +1,1430 @@
+---
+title: "HM2 Q1"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## **QUESTION 1 - GREEN HOUSES**
+
+
+### Reading the file
+
+
+```{r }
+rm(list = ls())
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+filename = 'greenbuildings.csv'
+setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data")
+green =  read.csv(filename,header = TRUE)
+head(green)
+attach(green)
+```
+
+
+The analysis done by 'excel guru' have a few issues. Let's go through them one by one
+
+### ISSUE 1
+
+Challenging the removal of buildings with occupancy rate less than 10%
+
+```{r }
+plot(leasing_rate,Rent)
+```
+
+From the scatter plot above, we can see that there isn't anything weird going on in terms of rent in the buildings with occupany less than 10%. These buildings also have a good range of rents which lead upto 50$ per sqft. So we should consider these buildings in our analysis as well.
+
+
+### ISSUE 2
+
+The excel guru took the medians between the green buildings and non green buildings. He missed taking a few factors under consideration. 
+
+One such factor is the class of the building. Let's start by creating a single class column which tells us which class the building is in. And then we plot a box plot for all three classes
+
+```{r }
+green$class = ifelse(green$class_a == 1, 'Class A', ifelse(green$class_b == 1, 'Class B', 'Class C'))
+boxplot(Rent~green$class)
+
+```
+
+From the box plot above we can see that the rent is different for different classes.With buildings in Class A having the highest rent and Class C buildings having the least rent
+
+Hence the rent of the building depends on the building quality. Let's see how the premiums for green and non green buildings change when class is kept constant
+
+```{r }
+class_groupby = green %>%
+  group_by(class,green_rating)%>%
+  summarize(mean_rent = mean(Rent),n=n())
+
+
+ggplot(class_groupby,aes(x=class,y = mean_rent,fill=factor(green_rating)))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  labs(x = 'Class of Building')+
+  labs(y = 'Average Rent')+
+  labs(title = 'Comparing the rents of green vs non green buildings based on class')+
+  labs(fill = 'Green/Non Green')
+
+
+
+
+```
+
+
+From the graph above we can see that for high quality buildings, the average rent for green buildings is less than the average rent of non green buildings. And for low quality buildings (Class C), the green buildings have a premium. 
+
+Hence it is important to know the quality of material we are going to use for the project
+
+
+### ISSUE 3
+
+Similar to class, the excel guru forgot to take the age into account. Buildings which are younger tend to charge higher than buildings which are old. And since green buildings are relatively new concepts, their relative age might be less and this might be the reason for the difference in rent
+
+Let's confirm our hypothesis:
+
+Plotting density histograms for green buildings and non green buildings 
+
+```{r }
+ggplot(green)+
+  geom_histogram(aes(x = age, y = stat(density),fill=factor(green_rating)),binwidth = 5,)+
+  labs(x = 'Age of the building')+
+  labs(y = 'Density')+
+  labs(title= 'Histogram for age of the building - Green vs Non Green')+
+  labs(fill = 'Green/Non Green')
+
+
+
+```
+
+From the charts above we can see that our hypothesis is confirmed. There are more number of non green buildings which are older than 50 years when compared to green buildings.
+
+Let's see how the premium between buildings vary if the age is kept constant
+
+
+
+```{r }
+
+green$agebins = cut(age,c(-1,10,30,50,90,200))
+
+agebins_groupby = green %>%
+  group_by(agebins,green_rating)%>%
+  summarize(mean_rent = mean(Rent),n=n())
+
+
+ggplot(agebins_groupby,aes(x=agebins,y = mean_rent,fill=factor(green_rating)))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  labs(x = 'Age of the building bins')+
+  labs(y = 'Average Rent')+
+  labs(title = 'Rents of Green vs Non Green building based on age')+
+  labs(fill = 'Green/Non Green')
+
+  
+
+
+
+```
+
+From the chart above, we can see that for younger buildings, non green buildings have a premium and as the age of the building increases the rent for green buildings is higher.
+
+
+### ISSUE 4
+
+The excel guru did not take into consideration if the project has any amenities planned or not. Green houses with amenities and without amenities have a different premium over non green houses
+
+```{r }
+green$amenities = ifelse(amenities==1, 'Yes', 'No')
+
+amenities_groupby = green %>%
+  group_by(amenities,green_rating)%>%
+  summarize(mean_rent = mean(Rent),n=n())
+
+
+ggplot(amenities_groupby,aes(x=amenities, mean_rent,fill=factor(green_rating)))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  labs(x = 'Amenities Provided')+
+  labs(y = 'Average Rent')+
+  labs(title = 'Comparing the rents of green vs non green buildings based on amenities provided')+
+  labs(fill = 'Green/Non Green')
+
+
+
+
+```
+
+From the chart above, we can see that with amenities provided the green and non green buildings will get almost the same rent
+
+
+### ISSUE 5
+
+The excel guru failed to take the neighborhood into account. The premium of green houses over non green houses might depend on the neighborhood the buildings are in.
+
+There are a total of 685 clusters which are a lot to look at. Let's group them together based on the 'cluster_rent' to get fewer clusters. The cluster_rent column can act as a proxy for neighborhood because the rent of the cluster will depend on the geographical location of the cluster.
+
+From the graph below, we can see that the green buildings are more left skewed than the non green buildings.
+
+```{r }
+ggplot(green)+
+  geom_histogram(aes(x = cluster_rent, y = stat(density),fill=factor(green_rating)),binwidth = 5,)+
+  labs(x = 'Cluster Rent')+
+  labs(y = 'Density')+
+  labs(title= 'Histogram for the Neighborhood - Green vs Non Green')+
+  labs(fill = 'Green/Non Green')
+
+
+
+```
+
+Now let's bucket the buildings based on cluster rent
+
+```{r }
+
+green$nbhdbins = cut(cluster_rent,c(0,20,30,40,60,100))
+
+nbhdbins_groupby = green %>%
+  group_by(nbhdbins,green_rating)%>%
+  summarize(mean_rent = mean(Rent),n=n())
+
+
+ggplot(nbhdbins_groupby,aes(x=nbhdbins,y = mean_rent,fill=factor(green_rating)))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  labs(x = 'Cluster rent bins')+
+  labs(y = 'Average Rent')+
+  labs(title = 'Rents of Green vs Non Green building based on Nbhd')+
+  labs(fill = 'Green/Non Green')
+
+  
+
+
+
+```
+
+
+From the chart above, we can see that based on the neighborhood the East Cesar Chavez is in, the premium for Green buildings over Non Green buildings will differ.
+
+
+### ISSUE 6
+
+The excel guru missed the fact that the number of stories in the building also matters.Let's check if the number of stories should be considered or not
+
+
+```{r }
+
+
+green$strybins = cut(stories,c(0,10,20,35,50,80,120))
+
+strybins_groupby = green %>%
+  group_by(strybins,green_rating)%>%
+  summarize(mean_rent = mean(Rent),n=n())
+
+
+ggplot(strybins_groupby,aes(x=strybins,y = mean_rent,fill=factor(green_rating)))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  labs(x = 'Number of stories in the building')+
+  labs(y = 'Average Rent')+
+  labs(title = 'Rents of Green vs Non Green building based on number of stories')+
+  labs(fill = 'Green/Non Green')
+
+  
+
+```
+
+
+From the chart above we can see that for a few bins, green houses have a premium and for a few bins they don't. Hence the excel guru should have taken care of this fact as well.
+
+### CONCLUSION
+
+In conclusion, there are a lot of factors which can impact the rent of the building such as the Neighborhood, Building quality (class), Amenities planned etc have not been provided. Hence it is a tough call to make. 
+
+But with the details provided, I would recommend not going ahead with the green buildings as most of the difference in the rent between green and non green buildings is because of the skew in age and class distribution of these two groups.
+
+***
+
+## **QUESTION 2 - ABIA FLIGHTS**
+
+### Reading the file
+
+
+```{r }
+rm(list = ls())
+filename = 'ABIA.csv'
+setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data")
+flights =  read.csv(filename,header = TRUE)
+head(flights)
+```
+
+### MOST FLOWN AIRLINES:
+
+```{r}
+airline_groupby = flights%>%
+  group_by(UniqueCarrier)%>%
+  summarize(numflights = length(TailNum))
+
+ggplot(airline_groupby,aes(x=UniqueCarrier,y = numflights))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  labs(x = 'Airline Carrier')+
+  labs(y = 'Number of Trips')+
+  labs(title = 'Number of trips made by airline carriers')
+
+```
+
+### Adding a new metric - Delaypercent:
+
+Delaypercent = ArrDelay/CRSElapsedTime
+
+this metric gives us the arrival delay in terms of total estimated trip duration. Delay of 10mins in a 1hr flight and delay of 10mins in a 5hr flight are not the same!!
+
+We are considering only the arrival delay because customers care about it mostly. Most times people don't care if the flight departures late.
+
+If the ArrDelay is negative, that means the flight arrived before schduled time, we make the value as zero because we shouldn't consider these when calculating the delay
+
+```{r}
+flights$Delaypercent = (flights$ArrDelay * 100.0)/ flights$CRSElapsedTime
+flights$Delaypercent = ifelse(flights$Delaypercent>0, flights$Delaypercent, 0.0)
+
+```
+
+
+### AIRLINES WITH MOST DELAY:
+
+```{r}
+airlinedelay_groupby = flights%>%
+  group_by(UniqueCarrier)%>%
+  summarize(avgdelay = mean(Delaypercent,na.rm = TRUE))
+
+ggplot(airlinedelay_groupby,aes(x=UniqueCarrier,y = avgdelay))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  labs(x = 'Airline Carrier')+
+  labs(y = '% Delay in terms of Trip Duration')+
+  labs(title = '% delay by carriers - in terms of Trip Duration')
+
+```
+
+### AIRLINES WITH MOST CANCELLATIONS:
+
+```{r}
+airlinecan_groupby = flights%>%
+  group_by(UniqueCarrier)%>%
+  summarize(cancellationrate = (sum(Cancelled)*100.0/length(TailNum)))
+
+ggplot(airlinecan_groupby,aes(x=UniqueCarrier,y = cancellationrate))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  labs(x = 'Airline Carrier')+
+  labs(y = 'Cancellation Rate')+
+  labs(title = 'Cancellation rate by carriers')
+
+```
+
+
+
+### Delay by Day of the week:
+
+```{r}
+dowdelay_groupby = flights%>%
+  group_by(DayOfWeek)%>%
+  summarize(avgdelay = mean(Delaypercent,na.rm = TRUE))
+
+ggplot(dowdelay_groupby,aes(x=DayOfWeek,y = avgdelay))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  labs(x = 'Day of the Week')+
+  labs(y = '% Delay in terms of Trip Duration')+
+  labs(title = '% delay by Day of the Week - in terms of Trip Duration')
+
+```
+
+
+Average delay is almost the same for all the days of the week. Let's see if this is different by airline carriers.
+
+
+
+
+### Delay by airline by Day of the week:
+
+```{r}
+airlinedaydelay_groupby = flights%>%
+  group_by(UniqueCarrier,DayOfWeek)%>%
+  summarize(avgdelay = mean(Delaypercent,na.rm = TRUE))
+
+ggplot(data = airlinedaydelay_groupby) + 
+  geom_bar(mapping = aes(x=DayOfWeek, y=avgdelay), stat='identity') + 
+  facet_wrap(~UniqueCarrier)+
+  labs(x = 'Day of the week')+
+  labs(y = '% Delay in terms of Trip Duration')+
+  labs(title = '% Delay by carriers by Day of Week')
+
+
+```
+
+We see that the trend across for the week is same for all carriers except MQ and NW. MQ does relatively better on the weekend and NW does bad in the middle of the week and does better in the remaining days.
+
+
+### Adding a new columns - departure hour and arrival hour:
+Sch_dep_hr = hour from CRSDeptTime
+Sch_arr_hr = hour from CRSArrTime
+
+```{r}
+flights$Sch_dep_hr = ifelse(nchar(flights$CRSDepTime)==2,0,
+                            ifelse(nchar(flights$CRSDepTime) == 3, substr(flights$CRSDepTime,1,1),substr(flights$CRSDepTime,1,2)))
+
+flights$Sch_arr_hr = ifelse(nchar(flights$CRSArrTime)==2,0,
+                            ifelse(nchar(flights$CRSArrTime) == 3, substr(flights$CRSArrTime,1,1),substr(flights$CRSArrTime,1,2)))
+
+
+flights$Sch_dep_hr = as.numeric(as.character(flights$Sch_dep_hr))
+flights$Sch_arr_hr = as.numeric(as.character(flights$Sch_arr_hr))
+
+```
+
+
+
+### Adding a new column - DayPart:
+
+
+DayPart = morning/afternoon/evening/ night/latenight
+
+this metric splits the hours into these 4 parts based on the departure hour
+
+departure hour:
+5 - 11 Morning
+12 - 18 Afternoon
+19 - 20 Night
+21 - 4 Late Night
+
+```{r}
+flights$DayPart = ifelse((flights$Sch_dep_hr <=4 | flights$Sch_dep_hr > 21), 'Late Night',
+                         ifelse((flights$Sch_dep_hr > 4 & flights$Sch_dep_hr <=11), "Morning",ifelse((flights$Sch_dep_hr > 11 & flights$Sch_dep_hr <= 18),"Afternoon","Night")))
+```
+
+
+
+### Delay by airline by Part of the day:
+
+```{r}
+airlinedaypartdelay_groupby = flights%>%
+  group_by(UniqueCarrier,DayPart)%>%
+  summarize(avgdelay = mean(Delaypercent,na.rm = TRUE))
+
+ggplot(data = airlinedaypartdelay_groupby) + 
+  geom_bar(mapping = aes(x=DayPart, y=avgdelay), stat='identity') + 
+  facet_wrap(~UniqueCarrier)+
+  labs(x = 'Part of the day')+
+  labs(y = '% Delay in terms of Trip Duration')+
+  labs(title = '% delay by Part of the Day - in terms of Trip Duration')+
+  coord_flip()
+
+
+```
+
+For almost all airlines we are seeing that their night flights are getting delayed.
+So be wary when booking a late night fligt!!
+
+
+### **AIRLINES TO CONSIDER/NOT CONSIDER WHILE TAKING A LATE NIGHT (REDEYE) FLIGHT:**
+
+If the flight departures sometime after 21:00hrs and 4:00hrs we consider it to be a red eye flights.
+
+We usually want to get into the redeye flights and sleep.
+So it will be a trouble for us if 
+     a)The departure is delayed as we'll have to be awake for a longer time 
+     b)The arrival is delayed as we'll be late for our planned tasks upon landing
+     
+
+
+### Adding a new metric - TotalDelaypercent:
+
+TotalDelaypercent = (DepDelay + ArrDelay)/CRSElapsedTime
+
+if either of the DepDelay or ArrDelay is negative, we make that to 0 as we need the total delay. We shouldn't care if the airline made up for the late departure because the customer did face issues because of the delay
+
+```{r}
+flights$TotalDelaypercent = ((ifelse(flights$ArrDelay>0, flights$ArrDelay, 0.0)+ifelse(flights$DepDelay>0, flights$DepDelay, 0.0))*100.0)/ flights$CRSElapsedTime
+
+
+```
+
+
+### Adding a new metric - RedeyeFlight:
+
+Now using the departure hour we see if that flight is a red eye flight or not
+
+```{r}
+flights$Redeye = ifelse(flights$DayPart == 'Late Night','RedEye','Normal')
+
+```
+
+### Checking airline performance by redeye and normal flights
+
+
+
+```{r}
+redeyedelay_groupby = flights%>%
+  group_by(UniqueCarrier,Redeye)%>%
+  summarize(avgdelay = mean(TotalDelaypercent,na.rm = TRUE))
+
+ggplot(data = redeyedelay_groupby) + 
+  geom_bar(mapping = aes(x=UniqueCarrier, y=avgdelay), stat='identity') + 
+  facet_wrap(~Redeye)+
+  labs(x = 'Airline Carrier')+
+  labs(y = '% Delay in terms of Trip Duration')+
+  labs(title = 'Delay by carriers by Flight type')
+
+
+```
+
+### We see that AA,CO and XE have unusally high delays for their redeye flights. You might want to stay away from them. Choose a B6 or YV flight if it's available in your route!!!
+
+
+### **AIRLINES TO CONSIDER/NOT CONSIDER FOR PROFESSIONALS:**
+
+If the flights arrive some time in the morning between 7:00 and 10:00 during the weekday, most probably it is preferred by professionals who are attending a business meeting. They would not like their flight to be delayed.
+
+We should look at only the arrival delay here as they wouldn't be that concerned if they flight departed late
+
+But first, we are adding a column which classifies the flights accordingly:
+
+
+### Adding a new metric - Professionals:
+
+Now using the arrival hour and arrival day, we see if that flight is preferred for professionals or not
+
+```{r}
+flights$DayOfWeek = as.numeric(as.character(flights$DayOfWeek))
+
+
+flights$Professional = ifelse((flights$Sch_arr_hr >= 7 & flights$Sch_arr_hr <= 10 & flights$DayOfWeek >= 1 & flights$DayOfWeek <= 5),"Professional","Normal")
+
+```
+
+### Checking airline performance by professional and normal flights
+
+
+
+```{r}
+profdelay_groupby = flights%>%
+  group_by(UniqueCarrier,Professional)%>%
+  summarize(avgdelay = mean(Delaypercent,na.rm = TRUE))
+
+ggplot(data = profdelay_groupby) + 
+  geom_bar(mapping = aes(x=UniqueCarrier, y=avgdelay), stat='identity') + 
+  facet_wrap(~Professional)+
+  labs(x = 'Airline Carrier')+
+  labs(y = '% Delay in terms of Trip Duration')+
+  labs(title = 'Delay by carriers by Professionals preferred')
+
+
+```
+
+If you have meetings scheduled and don't want be late for them, better not take a CO or MQ or OH flight!!
+
+
+### **AIRLINES TO CONSIDER/NOT CONSIDER FOR PEOPLE WITH WEEKEND TRIPS:**
+
+If the flights arrive on a friday or during Saturday morning before 11:00 hrs, most probably it has people who are planning on weekend trips
+
+In this case, the last thing when you want to happen is a flight cancellation.Hence for this analysis we are looking at the flight cancellations
+
+First, we are adding a column which classifies the flights accordingly:
+
+### Adding a new metric - Weekend trip goers:
+
+Now using the arrival hour and arrival day, we see if the flight is preferred by people going for weekend trips
+
+```{r}
+
+flights$Weekendtrips = ifelse(flights$DayOfWeek == 5 | (flights$DayOfWeek == 6 & flights$Sch_arr_hr < 11),"Weekend Trip Goers","Normal")
+
+```
+
+
+### Checking airline performance by weekend trips and normal flights
+
+
+
+```{r}
+weekendtripsdelay_groupby = flights%>%
+  group_by(UniqueCarrier,Weekendtrips)%>%
+  summarize( cancellationrate = (sum(Cancelled)*100.0/length(TailNum)))
+
+ggplot(data = weekendtripsdelay_groupby) + 
+  geom_bar(mapping = aes(x=UniqueCarrier, y=cancellationrate), stat='identity') + 
+  facet_wrap(~Weekendtrips)+
+  labs(x = 'Airline Carrier')+
+  labs(y = 'Avg Cancellation Rate')+
+  labs(title = 'Cancellation rates for Flights with weekend trip goers')
+
+
+```
+
+If you have a fun weekend scheduled with your family/friends don't book a ticket in 9E,MQ or OH airlines and avoid dissapointment!!
+
+***
+
+## **QUESTION 3 - PORTFOLIO**
+
+```{r,include=FALSE}
+rm(list=ls())
+library(mosaic)
+library(quantmod)
+library(foreach)
+```
+
+### **Portfolio 1: 'Aggressive Portfolio'**
+### Modern Portfolio Theory like all investment theories attempts to maximize the expected rate of return while minimizing the risk. The portfolio chosen here relies on the principles discussed in 'A Random Walk down Wall Street by Burton Malkiel. A percentage of the portfolio is invested in Developed Markets (Germany, UK, Japan) Emerging Markets (India, China). This is to prevent home bias and to diversify the holdings. The portfolio would qualify as Aggresive with the following distribution
+### US Equity(VTI) - 35% 
+### Developed Markets(VEA) - 27%
+### Emerging Markets(VWO) - 18%
+### Dividend Stocks(VIG) - 9%
+### Bonds(SCHZ) - 11%
+
+```{r}
+portfolio1 = c("VTI", "VEA", "VWO","VIG","SCHZ")
+```
+
+### Obtain the data from 30th April 2014
+```{r}
+getSymbols(portfolio1,from = "2014-04-30")
+```
+
+
+### Get close to close of an object in the portfolio
+```{r}
+for(ticker in portfolio1) {
+  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+all_returns = cbind(ClCl(VTIa),
+                     ClCl(VEAa),
+                     ClCl(VWOa),
+                     ClCl(VIGa),
+                    ClCl(SCHZa))
+all_returns = as.matrix(na.omit(all_returns))
+```
+
+
+### Initial wealth is set to hundred thousand dollars and for a 20-day period, there are three steps being done. (1) calculate returns (2) sum of holdings is updated and (3) re-assign the holdings in proportion of the original weights of the stocks in the portfolio. This is done for everyday of 20 days and repeated for 1000 times.
+```{r}
+initial_wealth = 100000
+sim1 = foreach(i=1:1000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.35, 0.27, 0.18, 0.09, 0.11)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    holdings = weights * total_wealth
+  }
+  wealthtracker
+}
+```
+
+### Sample result is as follows:
+```{r,echo=FALSE}
+head(sim1)
+```
+
+### The Vaue at risk is calculated and a histogram plot shows its distribution.
+```{r,echo=FALSE}
+avg=mean(sim1[,n_days])
+pl_perc=((sim1[,n_days]- initial_wealth)/initial_wealth)*100
+hist(pl_perc, breaks=30)
+perc_95=quantile(pl_perc,p=0.05)
+perc_95
+```
+### As stated, Monte-carlo simulation of 1000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -4.932%.
+
+### **Portfolio2: 'Safe portfolio'**
+### The Golden butterfly is a portfolio developed by Tyler, an anonymous developer of https://portfoliocharts.com/ that gained some traction, in the investment circles as an alternative to Ray Dalio's 'All Weather Portfolio'. Although the author claims the Golden Butterfly is suited for wealth accumulation over all time frames, the heavily weighted bonds and commodity would make this ideal for managing retirement account. This would qualify as a Safe portfolio and the expected VaR value is less than the 1st portfolio. Below's the distribution for Golden Butterfly.
+##Large Cap Blend(IWD) - 20%
+##Small Cap Value(JKL) - 20%
+##Total Bond(AGG) - 40%
+##Gold -20% 
+
+```{r}
+portfolio2 = c("IWD","JKL","AGG","GLD")
+```
+
+```{r,include=FALSE}
+getSymbols(portfolio2,from = "2014-04-30")
+for(ticker in portfolio2) {
+  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+all_returns = cbind(ClCl(IWDa),
+                    ClCl(JKLa),
+                    ClCl(AGGa),
+                    ClCl(GLDa))
+head(all_returns)
+all_returns = as.matrix(na.omit(all_returns))
+#Bootstrap
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.2, 0.2, 0.4,0.2)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    holdings = weights * total_wealth
+  }
+  wealthtracker
+}
+head(sim1)
+hist(sim1[,n_days], 25)
+```
+
+```{r}
+# Profit/loss%
+avg=mean(sim1[,n_days])
+pl_perc=((sim1[,n_days]- initial_wealth)/initial_wealth)*100
+hist(pl_perc, breaks=30)
+quantile(pl_perc,p=0.05)
+```
+
+### A Monte-carlo simulation of 5000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -2.293%. This being a safe portfolio, the VAR observed turned to be lesser than VAR of Portfolio1, as expected.
+
+### **Portfolio3:'Diverse portfolio'**
+### A custom built portfolio : I put together a portfolio that would be simple and provide diversification in terms of asset classes (Stocks vs Bonds) and Geography (US vs International). For this portfolio, the distribution is
+##US Stocks(SPY) - 60%
+##International Stocks(SCHC) - 30%
+##Bonds(BND) -10% 
+
+```{r}
+portfolio3 = c("BND","SPY","SCHC") 
+```
+
+```{r,include=FALSE}
+getSymbols(portfolio3,from = "2014-04-30")
+for(ticker in portfolio3) {
+  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+all_returns = cbind(ClCl(BNDa),
+                    ClCl(SPYa),
+                    ClCl(SCHCa))
+head(all_returns)
+all_returns = as.matrix(na.omit(all_returns))
+#Bootstrap
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.1,0.6,0.3)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    holdings = weights * total_wealth
+  }
+  wealthtracker
+}
+head(sim1)
+hist(sim1[,n_days], 25)
+```
+
+```{r}
+# Profit/loss%
+avg=mean(sim1[,n_days])
+pl_perc=((sim1[,n_days]- initial_wealth)/initial_wealth)*100
+hist(pl_perc, breaks=30)
+quantile(pl_perc,p=0.05)
+```
+
+### A Monte-carlo simulation of 10000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -4.749%. This was a diverse portfolio in terms of asset classes and was aggressive when compared to portfolio2. So, the VAR turned out to be higher. The reason for the VAR to be close to that of Portfolio1 could be because both the portfolios, though they have a different mix in terms of the type of stocks, they have a similar weight (90%) on stocks.
+
+
+
+
+---
+title: "HM2 Q1"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+
+
+
+
+## **QUESTION 4 - MARKET SEGMENTATION**
+
+
+### Reading the file
+
+```{r, results = "hide" }
+rm(list = ls())
+library(ggplot2)
+setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data")
+filename = 'social_marketing.csv'
+raw_data = read.csv(filename, header = TRUE)
+rownames(raw_data) <- raw_data$X
+raw_data = raw_data[,-c(1)]
+summary(raw_data)
+```
+
+
+#### Getting chatter and uncategorized into one group as they are proxies for each other.
+#### Getting spam and adult into one group as they both are most likely from bots.
+
+```{r }
+raw_data$nocat = raw_data$chatter + raw_data$uncategorized
+raw_data$bots = raw_data$spam + raw_data$adult
+
+raw_data = raw_data[,-c(1,5,35,36)]
+
+```
+
+### Scaling the data
+
+```{r }
+scaled_data = raw_data[,-c(1)]
+scaled_data = scale(scaled_data)
+
+```
+
+### Calculating the mean and standard deviation for the columns
+
+```{r}
+mu = attr(scaled_data,"scaled:center")
+sigma = attr(scaled_data,"scaled:scale")
+
+
+```
+
+
+
+#### Trying "elbow method" to get the best value for k. Tot.withinss gives the total within cluster sum of squares
+
+```{r}
+
+set.seed(21)
+k.max = 20
+data = scaled_data
+wss = sapply(1:k.max, function(k){kmeans(data,k,nstart = 50,iter.max = 20)$tot.withinss})
+plot(1:k.max, wss)
+wss
+
+```
+
+
+#### Here we are trying to initialize using kmeans++ and the withinss is the same for both kmeans and kmeans++. Hence we are just going to take k means
+
+```{r}
+library(LICORS)  # for kmeans++
+k.max = 20
+data = scaled_data
+wss = sapply(1:k.max, function(k){kmeanspp(data, k, nstart=25)$tot.withinss})
+plot(1:k.max, wss)
+wss
+```
+
+
+
+
+#### From the elbow chart we saw that k=9 is the good option to consider. Getting the clusters for k = 9
+
+```{r }
+set.seed(11)
+
+
+cluster_cnt = 9
+clust1 = kmeans(scaled_data, cluster_cnt, nstart=50,iter.max = 20)
+clust1$center
+
+i = 1
+
+for (i  in (1:cluster_cnt)){
+  cat (length(which(clust1$cluster == i)),"\n")
+}
+
+
+
+```
+
+
+### Understanding cluster 1
+
+#### The centroid of cluster 1 have high scores in photo sharing, cooking, beauty, fashion and have moderatley high scores in music and shopping
+
+#### We can infer from these factors that this cluster is for "younger women"
+
+```{r}
+qplot(beauty, fashion, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+
+### Understanding cluster 2
+
+#### The centroid of cluster 2 have negative z-value between -0.25 and -0.5 for almost all factors. And this cluster has close to 42% of the entire population. This is the cluster where all the "uncategorized people" fall under
+
+
+
+### Understanding cluster 3
+
+#### The centroid of cluster 3 have high z-value for tv film, music, art and have moderately high score for crafts, home and garden and small businesses
+
+#### We can infer from these factors that this cluster is people who are into different kinds of "arts and crafts"
+
+```{r}
+qplot(tv_film, art, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+### Understanding cluster 4
+
+#### The centroid of cluster 4 have high z-value for online gaming, college uni and sports playing
+
+#### We can infer from these factors as these are most probably " university students"
+
+```{r}
+qplot(online_gaming, college_uni, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+
+### Understanding cluster 5
+
+#### The centroid of cluster 5 have high z-value for sports fandom, food, family, nutrition, religion,parenting and school
+
+#### We can infer from these factors that this cluster is most probably "parents with kids who go to school"
+
+
+```{r}
+qplot(sports_fandom, parenting, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+### Understanding cluster 6
+
+#### The centroid of cluster 6 have high scores in travel, politics, news, computers and have moderately high scores in business and small business
+
+#### We can infer from these factors that this cluster is for "business professionals" who are updated with what's currently happeing in the world
+
+```{r}
+qplot(travel, politics, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+### Understanding cluster 7
+
+#### The centroid of cluster 7 have high scores for photo sharing, shopping, no category and have moderately high scores for eco, business, dating and small business
+
+#### We can infer from these factors that this cluster is from "middle aged women who are active on the internet" and tweet about a lot of different things
+
+
+```{r}
+qplot(photo_sharing, shopping, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+### Understanding cluster 8
+
+#### The centroid of cluster 8 have high scores in sports fandom, politics, news, automotives and have moderately high scores in outdoors and family
+
+#### We can infer from these factors that this cluster is with "middle aged men" without school going kids
+
+
+```{r}
+qplot(news, automotive, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+### Understanding cluster 9
+
+#### The centroid of cluster 9 have high z-value for health nutrition, outdoors, personal fitness and have moderately high score for food and eco 
+
+#### We can infer from these factors that this cluster is "fitness enthusiasts" who love working out
+
+
+```{r}
+qplot(health_nutrition, personal_fitness, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+
+
+
+## **QUESTION 5 - AUTHOR ATTRIBUTION**
+
+
+
+### IMPORTING NECESSARY LIBRARIES
+
+```{r}
+rm(list = ls())
+
+library(tm) 
+library(magrittr)
+library(slam)
+library(proxy)
+library(tibble)
+library(dplyr)
+```
+
+
+### SETTING THE READER FUNCTION AND WORKING DIRECTORY
+```{r}
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)), 
+							id=fname, language='en') }
+
+setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data/ReutersC50")
+
+```
+
+### Getting the names of all 2500 files. First we got the list of all 50 directories and then got the list of the .txt files in them.
+### At the end we applied the reader function on these files
+
+```{r}
+
+## For train data
+ 
+dirs_list_train = list.dirs('D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data/ReutersC50/C50train',recursive = FALSE)
+
+file_list_train = character()
+
+for(i in dirs_list_train){
+  xx = Sys.glob(paste(i,'/*txt',sep = ''))
+  file_list_train = c(xx,file_list_train)
+}
+
+routers_train = lapply(file_list_train, readerPlain) 
+
+
+## For test data
+ 
+dirs_list_test = list.dirs('D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data/ReutersC50/C50test',recursive = FALSE)
+
+file_list_test = character()
+
+for(i in dirs_list_test){
+  xx = Sys.glob(paste(i,'/*txt',sep = ''))
+  file_list_test = c(xx,file_list_test)
+}
+
+routers_test = lapply(file_list_test, readerPlain) 
+
+
+```
+
+
+### Cleaning up file names
+
+```{r}
+
+## Train files
+
+mynames_train = file_list_train %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+head(mynames_train)
+
+## Test files
+
+mynames_test = file_list_test %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+head(mynames_test)
+
+```
+
+### Renaming the articles and creating a corpus of all documents
+
+```{r}
+## For train data
+
+names(routers_train) = mynames_train
+documents_raw_train = Corpus(VectorSource(routers_train))
+
+
+## For test data
+
+names(routers_test) = mynames_test
+documents_raw_test = Corpus(VectorSource(routers_test))
+
+
+```
+
+
+### Cleaning the documents
+
+```{r}
+## For train data
+
+my_documents_train = documents_raw_train
+my_documents_train = tm_map(my_documents_train, content_transformer(tolower)) # make everything lowercase
+my_documents_train = tm_map(my_documents_train, content_transformer(removeNumbers)) # remove numbers
+my_documents_train = tm_map(my_documents_train, content_transformer(removePunctuation)) # remove punctuation
+my_documents_train = tm_map(my_documents_train, content_transformer(stripWhitespace)) ## remove excess white-space
+my_documents_train = tm_map(my_documents_train, content_transformer(removeWords), stopwords("en"))
+## stemming the words
+my_documents_train = tm_map(my_documents_train, content_transformer(stemDocument),language="english")
+
+
+
+## For test data
+
+my_documents_test = documents_raw_test
+my_documents_test = tm_map(my_documents_test, content_transformer(tolower)) # make everything lowercase
+my_documents_test = tm_map(my_documents_test, content_transformer(removeNumbers)) # remove numbers
+my_documents_test = tm_map(my_documents_test, content_transformer(removePunctuation)) # remove punctuation
+my_documents_test = tm_map(my_documents_test, content_transformer(stripWhitespace)) ## remove excess white-space
+my_documents_test = tm_map(my_documents_test, content_transformer(removeWords), stopwords("en"))
+## stemming the words
+my_documents_test = tm_map(my_documents_test, content_transformer(stemDocument),language="english")
+
+
+```
+
+
+
+### Creating the document term matrix and removing sparse data from the train. We are removing terms with count 0 in more than 90% of the docs
+
+```{r}
+## For train data
+DTM_routers_train = DocumentTermMatrix(my_documents_train)
+DTM_routers_train
+
+DTM_routers_train = removeSparseTerms(DTM_routers_train, 0.90)
+DTM_routers_train
+
+
+```
+### The entries fell from 80Million to 800K
+
+
+### Creating the document term matrix for test data now
+```{r}
+
+
+## For test data
+#DTM_routers_test = DocumentTermMatrix(my_documents_test)
+#DTM_routers_test
+
+DTM_routers_test = DocumentTermMatrix(my_documents_test, control = list
+               (dictionary=Terms(DTM_routers_train)) )
+
+DTM_routers_test
+
+
+```
+
+
+
+
+### Getting the TF-IDF matrix
+
+```{r}
+## For train data
+N_train = nrow(DTM_routers_train)
+DTM_routers_train = as.matrix(DTM_routers_train)
+TF_mat = DTM_routers_train/rowSums(DTM_routers_train)
+IDF_vec = log(1 + N_train/colSums(DTM_routers_train > 0))
+TFIDF_mat_train = sweep(TF_mat, MARGIN=2, STATS=IDF_vec, FUN="*")  
+
+
+## For test data
+N_test = nrow(DTM_routers_test)
+DTM_routers_test = as.matrix(DTM_routers_test)
+TF_mat = DTM_routers_test/rowSums(DTM_routers_test)
+IDF_vec = log(1 + N_test/colSums(DTM_routers_test > 0))
+TFIDF_mat_test = sweep(TF_mat, MARGIN=2, STATS=IDF_vec, FUN="*")
+
+```
+
+### PCA on the TFIDF weights for train data:
+
+
+```{r}
+pc_routers_train = prcomp(TFIDF_mat_train, scale=TRUE)
+pve_train = summary(pc_routers_train)$importance[3,]
+plot(pve_train)  
+
+```
+
+
+### There is no proper elbow. We are going to consider 140 parameters, which explain close to 60% of the variance
+
+
+### Selecting only 140 components for test and 
+making predictions on test set by using model generated principal components:
+
+```{r}
+train = pc_routers_train$x[,1:140]
+test = predict(pc_routers_train,newdata =TFIDF_mat_test )[,1:140]
+
+```
+
+
+### Now we have the X's for test and train sorted. We need to get the Y's now. That is the authors name
+
+```{r}
+
+train_authors = file_list_train %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+  { lapply(., head, n=1) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+test_authors = file_list_test %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+  { lapply(., head, n=1) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+
+```
+
+
+### Doing multi class logistic regression using the nnet package.
+### Fitting the model and checking the accuracy
+
+```{r}
+library(nnet)
+ 
+logistic_fit = nnet::multinom(train_authors~.,data = as.data.frame(train),MaxNWts = 10000)
+predicted.classes <- logistic_fit %>% predict(as.data.frame(test))
+head(predicted.classes)
+
+cat(" The accuracy from Multi Class logistic regression is \n")
+mean(predicted.classes == test_authors)
+
+```
+
+### The accuracy for Logistic Regression is 40.4%
+
+
+### Fitting a Random Forest model
+
+
+```{r}
+library(randomForest)
+rf_fit = randomForest(as.factor(train_authors)~.,data =as.data.frame(train),ntree = 1000, mtry =  50, importance = TRUE)
+rf_predicted = predict(rf_fit,newx = test, type = 'response')
+cat(" The accuracy from Random Forests is \n")
+mean(rf_predicted == test_authors)
+
+
+```
+
+
+### The accuracy for Random Forests is 67.5%
+
+
+
+### Fitting a Naive Bayes Model
+
+```{r}
+library (naivebayes)
+
+nb_fit =naive_bayes(as.factor(train_authors) ~., data=as.data.frame(train))
+nb_pred = predict(nb_fit,test)
+
+cat(" The accuracy from Naive Bayes Model is \n")
+mean(nb_pred == test_authors)
+
+
+```
+
+### The accuracy for Naive Bayes Models are is 44.8%
+
+
+
+###  Conclusion:
+
+#### We see that the best model to predict the authors is random forests and we can predict the correct author with an accuracy of 67%
+
+
+## **QUESTION 6 - ASSOCIATION RULE MINING**
+
+
+### OPENING THE FILE
+```{r}
+rm(list=ls())
+setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data")
+filename = 'groceries.txt'
+groceries_raw = read.csv(filename, header = FALSE)
+
+head(groceries_raw)
+```
+
+### LOADING THE IMPORTANT LIBRARIES
+
+```{r, results = "hide", include= FALSE }
+library(tidyverse)
+library(arules)  # has a big ecosystem of packages built around it
+library(arulesViz)
+
+```
+
+
+### Getting the dataframe to the format required
+
+```{r, results = "hide" }
+groceries_raw$basket = rownames(groceries_raw)
+
+
+df1 =groceries_raw[,c(1,5)]
+colnames(df1) <- c("items","basket")
+df2 =groceries_raw[,c(2,5)]
+colnames(df2) <- c("items","basket")
+df3 =groceries_raw[,c(3,5)]
+colnames(df3) <- c("items","basket")
+df4 =groceries_raw[,c(4,5)]
+colnames(df4) <- c("items","basket")
+
+
+groceries <- rbind(df1,df2,df3,df4)
+groceries = groceries[groceries$items != '',]
+na.omit(groceries)
+```
+
+
+### Top 20 items in any basket
+
+```{r}
+groceries$items %>%
+  summary(., maxsum=Inf) %>%
+  sort(., decreasing=TRUE) %>%
+  head(., 20) %>%
+  barplot(., las=2, cex.names=0.6,ylab="Frequency", main = 'Top 20 items by Frequency')
+```
+
+
+### Getting the variables into the transactions class
+
+```{r}
+groceries_new = split(x=groceries$items, f=groceries$basket)
+groceries_new[[1]]
+grocery_trans = as(groceries_new, "transactions")
+
+```
+
+### Getting all the rules with a support of .01 and confidence .05
+
+```{r, results = "hide" }
+basketrules = apriori(grocery_trans, 
+                     parameter=list(support=.005, confidence=.05))
+
+arules::inspect(basketrules)
+
+```
+
+### Top 15 combinations of items which are usually bought together (Have high lift)
+
+```{r}
+arules::inspect(head(sort(basketrules, by = 'lift', decreasing = TRUE),15))
+```
+
+#### We see fruits mostly repeating. If people are buying one type of fruit, they most probably are going to buy other kinds of fruits as well. Hence it is a good idea to have all the fruits placed together
+
+
+### What are people buying along with the rolls/buns:
+
+#### Earlier we saw that rolls/buns are the second most frequently bought items. So now we are seeing what are people buying along with rolls/buns.
+
+```{r, results = "hide"}
+rollsbuns_basket =  apriori (grocery_trans, parameter=list (supp=0.001,conf = 0.001,minlen = 2), appearance = list(default="lhs",rhs="rolls/buns"))
+
+arules::inspect(head(sort(rollsbuns_basket, by = 'lift', decreasing = TRUE),15))
+
+plot(head(rollsbuns_basket, n = 15, by = "lift"), method = 'graph', measure  = c("lift"))
+
+
+```
+
+#### We see that along with rolls/buns people tend to buy soda, sausages, cheeses more. So we should have the meat and cheeses sections close by the bakery section
+
+
+### What are people buying the shopping bags for:
+
+#### Earlier we saw that shopping bags are in the top 20 most frequently bought items. Let's checkout what these shoppig bags are for
+
+```{r, results = "hide"}
+shoppingbags_basket =  apriori (grocery_trans, parameter=list (supp=0.001,conf = 0.001,minlen = 2), appearance = list(default="lhs",rhs="shopping bags"))
+```
+
+
+```{r}
+arules::inspect(head(sort(shoppingbags_basket, by = 'lift', decreasing = TRUE),15))
+
+plot(head(shoppingbags_basket, n = 15, by = "lift"), method = 'graph', measure  = c("lift"))
+
+
+```
+
+### People who buy cakes, hygiene articles, pot plants etc tend to buy shopping bags with them. Placing shopping bags along the aisles which have these items is recommended
+
+
+
+
+### Exploring the baskets which has citrus fruits
+
+
+```{r, results = "hide"}
+citrus_basket =  apriori (grocery_trans, parameter=list (supp=0.001,conf = 0.001,minlen = 2), appearance = list(default="lhs",rhs="citrus fruit"))
+
+```
+
+
+```{r }
+arules::inspect(head(sort(citrus_basket, by = 'lift', decreasing = TRUE),15))
+
+plot(head(citrus_basket, n = 15, by = "lift"), method = 'graph', measure  = c("lift"))
+```
+
+```
+
+### We see that there are high chances of having beef/turkey with citrus fruits in the same basket. This is interesting, as citrus doesn't go well with either of those meets
+
+
+
+### Plotting the assosciation rules
+
+```{r, results = "hide" }
+
+
+plot(basketrules, by = "lift", method = 'graph')
+
+
+```
+
+
+
