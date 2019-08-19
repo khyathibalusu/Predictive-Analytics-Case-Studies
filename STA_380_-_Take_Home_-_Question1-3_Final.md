@@ -574,7 +574,7 @@ ggplot(data = redeyedelay_groupby) +
 
 ![](STA_380_-_Take_Home_-_Question1-3_Final_files/figure-html/unnamed-chunk-23-1.png)<!-- -->
 
-### We see that AA,CO and XE have unusally high delays for their redeye flights. You might want to stay away from them. Choose a B6 or YV flight if it's available in your route!!!
+## We see that AA,CO and XE have unusally high delays for their redeye flights. You might want to stay away from them. Choose a B6 or YV flight if it's available in your route!!!
 
 
 ### **AIRLINES TO CONSIDER/NOT CONSIDER FOR PROFESSIONALS:**
@@ -618,7 +618,7 @@ ggplot(data = profdelay_groupby) +
 
 ![](STA_380_-_Take_Home_-_Question1-3_Final_files/figure-html/unnamed-chunk-25-1.png)<!-- -->
 
-If you have meetings scheduled and don't want be late for them, better not take a CO or MQ or OH flight!!
+## If you have meetings scheduled and don't want be late for them, better not take a CO or MQ or OH flight!!
 
 
 ### **AIRLINES TO CONSIDER/NOT CONSIDER FOR PEOPLE WITH WEEKEND TRIPS:**
@@ -659,7 +659,7 @@ ggplot(data = weekendtripsdelay_groupby) +
 
 ![](STA_380_-_Take_Home_-_Question1-3_Final_files/figure-html/unnamed-chunk-27-1.png)<!-- -->
 
-If you have a fun weekend scheduled with your family/friends don't book a ticket in 9E,MQ or OH airlines and avoid dissapointment!!
+## If you have a fun weekend scheduled with your family/friends don't book a ticket in 9E,MQ or OH airlines and avoid dissapointment!!
 
 ***
 
