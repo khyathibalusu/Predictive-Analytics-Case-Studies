@@ -1,0 +1,655 @@
+---
+title: "HM2 Q1"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+
+
+
+
+# QUESTION 4 - MARKET SEGMENTATION
+
+
+Reading the file
+
+```{r }
+rm(list = ls())
+library(ggplot2)
+setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data")
+filename = 'social_marketing.csv'
+raw_data = read.csv(filename, header = TRUE)
+rownames(raw_data) <- raw_data$X
+raw_data = raw_data[,-c(1)]
+summary(raw_data)
+```
+
+
+Getting chatter and uncategorized into one group as they are proxies for each other.
+Getting spam and adult into one group as they both are most likely from bots.
+
+```{r }
+raw_data$nocat = raw_data$chatter + raw_data$uncategorized
+raw_data$bots = raw_data$spam + raw_data$adult
+
+raw_data = raw_data[,-c(1,5,35,36)]
+
+```
+
+Scaling the data
+
+```{r }
+scaled_data = raw_data[,-c(1)]
+scaled_data = scale(scaled_data)
+
+```
+
+Calculating the mean and standard deviation for the columns
+
+```{r}
+mu = attr(scaled_data,"scaled:center")
+sigma = attr(scaled_data,"scaled:scale")
+
+
+```
+
+
+
+Trying "elbow method" to get the best value for k. Tot.withinss gives the total within cluster sum of squares
+
+```{r}
+
+set.seed(21)
+k.max = 20
+data = scaled_data
+wss = sapply(1:k.max, function(k){kmeans(data,k,nstart = 50,iter.max = 20)$tot.withinss})
+plot(1:k.max, wss)
+wss
+
+```
+
+
+Here we are trying to initialize using kmeans++ and the withinss is the same for both kmeans and kmeans++. Hence we are just going to take k means
+
+```{r}
+library(LICORS)  # for kmeans++
+k.max = 20
+data = scaled_data
+wss = sapply(1:k.max, function(k){kmeanspp(data, k, nstart=25)$tot.withinss})
+plot(1:k.max, wss)
+wss
+```
+
+
+
+
+from the elbow chart we saw that k=9 is the good option to consider. Getting the clusters for k = 9
+
+```{r}
+
+cluster_cnt = 9
+clust1 = kmeans(scaled_data, cluster_cnt, nstart=50,iter.max = 20)
+clust1$center
+
+i = 1
+
+for (i  in (1:cluster_cnt)){
+  cat (length(which(clust1$cluster == i)),"\n")
+}
+
+
+
+```
+
+
+## Understanding cluster 1
+
+The centroid of cluster 1 have high z-value for online gaming, college uni and sports playing
+
+We can infer from these factors as these are most probably " university students"
+
+```{r}
+qplot(online_gaming, college_uni, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+## Understanding cluster 2
+
+The centroid of cluster 2 have high z-value for sports fandom, food, family, nutrition, religion,parenting and school
+
+We can infer from these factors that this cluster is most probably "parents with kids who go to school"
+
+
+```{r}
+qplot(sports_fandom, parenting, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+## Understanding cluster 3
+
+The centroid of cluster 3 have high z-value for health nutrition, outdoors, personal fitness and have moderately high score for food and eco 
+
+We can infer from these factors that this cluster is "fitness enthusiasts" who love working out
+
+
+```{r}
+qplot(health_nutrition, personal_fitness, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+## Understanding cluster 4
+
+The centroid of cluster 4 have negative z-value between -0.25 and -0.5 for almost all factors. And this cluster has close to 42% of the entire population. This is the cluster where all the "uncategorized people" fall under
+
+
+## Understanding cluster 5
+
+The centroid of cluster 5 have high z-value for tv film, music, art and have moderately high score for crafts, home and garden and small businesses
+
+We can infer from these factors that this cluster is people who are into different kinds of "arts and crafts"
+
+```{r}
+qplot(tv_film, art, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+## Understanding cluster 6
+
+The centroid of cluster 6 have high scores in photo sharing, cooking, beauty, fashion and have moderatley high scores in music and shopping
+
+We can infer from these factors that this cluster is for "younger women"
+
+```{r}
+qplot(beauty, fashion, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+## Understanding cluster 7
+
+The centroid of cluster 7 have high scores in travel, politics, news, computers and have moderately high scores in business and small business
+
+We can infer from these factors that this cluster is for "business professionals" who are updated with what's currently happeing in the world
+
+```{r}
+qplot(travel, politics, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+
+## Understanding cluster 8
+
+The centroid of cluster 8 have high scores in sports fandom, politics, news, automotives and have moderately high scores in outdoors and family
+
+We can infer from these factors that this cluster is with "middle aged men" without school going kids
+
+
+```{r}
+qplot(news, automotive, data=raw_data, color=factor(clust1$cluster))
+
+
+```
+
+## Understanding cluster 9
+
+The centroid of cluster 9 have high scores for photo sharing, shopping, no category and have moderately high scores for eco, business, dating and small business
+
+We can infer from these factors that this cluster is from "middle aged women who are active on the internet" and tweet about a lot of different things
+
+
+
+
+# QUESTION 5 - AUTHOR ATTRIBUTION
+
+
+
+IMPORTING NECESSARY LIBRARIES
+
+```{r}
+rm(list = ls())
+
+library(tm) 
+library(magrittr)
+library(slam)
+library(proxy)
+library(tibble)
+library(dplyr)
+```
+
+
+SETTING THE READER FUNCTION AND WORKING DIRECTORY
+```{r}
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)), 
+							id=fname, language='en') }
+
+setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data/ReutersC50")
+
+```
+
+Getting the names of all 2500 files. First we got the list of all 50 directories and then got the list of the .txt files in them.
+At the end we applied the reader function on these files
+
+```{r}
+
+## For train data
+ 
+dirs_list_train = list.dirs('D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data/ReutersC50/C50train',recursive = FALSE)
+
+file_list_train = character()
+
+for(i in dirs_list_train){
+  xx = Sys.glob(paste(i,'/*txt',sep = ''))
+  file_list_train = c(xx,file_list_train)
+}
+
+routers_train = lapply(file_list_train, readerPlain) 
+
+
+## For test data
+ 
+dirs_list_test = list.dirs('D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data/ReutersC50/C50test',recursive = FALSE)
+
+file_list_test = character()
+
+for(i in dirs_list_test){
+  xx = Sys.glob(paste(i,'/*txt',sep = ''))
+  file_list_test = c(xx,file_list_test)
+}
+
+routers_test = lapply(file_list_test, readerPlain) 
+
+
+```
+
+
+Cleaning up file names
+
+```{r}
+
+## Train files
+
+mynames_train = file_list_train %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+head(mynames_train)
+
+## Test files
+
+mynames_test = file_list_test %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+head(mynames_test)
+
+```
+
+Renaming the articles and creating a corpus of all documents
+
+```{r}
+## For train data
+
+names(routers_train) = mynames_train
+documents_raw_train = Corpus(VectorSource(routers_train))
+
+
+## For test data
+
+names(routers_test) = mynames_test
+documents_raw_test = Corpus(VectorSource(routers_test))
+
+
+```
+
+
+Cleaning the documents
+
+```{r}
+## For train data
+
+my_documents_train = documents_raw_train
+my_documents_train = tm_map(my_documents_train, content_transformer(tolower)) # make everything lowercase
+my_documents_train = tm_map(my_documents_train, content_transformer(removeNumbers)) # remove numbers
+my_documents_train = tm_map(my_documents_train, content_transformer(removePunctuation)) # remove punctuation
+my_documents_train = tm_map(my_documents_train, content_transformer(stripWhitespace)) ## remove excess white-space
+my_documents_train = tm_map(my_documents_train, content_transformer(removeWords), stopwords("en"))
+
+
+
+## For test data
+
+my_documents_test = documents_raw_test
+my_documents_test = tm_map(my_documents_test, content_transformer(tolower)) # make everything lowercase
+my_documents_test = tm_map(my_documents_test, content_transformer(removeNumbers)) # remove numbers
+my_documents_test = tm_map(my_documents_test, content_transformer(removePunctuation)) # remove punctuation
+my_documents_test = tm_map(my_documents_test, content_transformer(stripWhitespace)) ## remove excess white-space
+my_documents_test = tm_map(my_documents_test, content_transformer(removeWords), stopwords("en"))
+
+```
+
+
+
+Creating the document term matrix and removing sparse data from the train. We are removing terms with count 0 in more than 90% of the docs
+
+```{r}
+## For train data
+DTM_routers_train = DocumentTermMatrix(my_documents_train)
+DTM_routers_train
+
+DTM_routers_train = removeSparseTerms(DTM_routers_train, 0.90)
+DTM_routers_train
+
+
+```
+The entries fell from 80Million to 700K
+
+
+Creating the document term matrix for test data now
+```{r}
+
+
+## For test data
+#DTM_routers_test = DocumentTermMatrix(my_documents_test)
+#DTM_routers_test
+
+DTM_routers_test = DocumentTermMatrix(my_documents_test, control = list
+               (dictionary=Terms(DTM_routers_train)) )
+
+DTM_routers_test
+
+
+```
+
+
+
+
+Getting the TF-IDF matrix
+
+```{r}
+## For train data
+N_train = nrow(DTM_routers_train)
+DTM_routers_train = as.matrix(DTM_routers_train)
+TF_mat = DTM_routers_train/rowSums(DTM_routers_train)
+IDF_vec = log(1 + N_train/colSums(DTM_routers_train > 0))
+TFIDF_mat_train = sweep(TF_mat, MARGIN=2, STATS=IDF_vec, FUN="*")  
+
+
+## For test data
+N_test = nrow(DTM_routers_test)
+DTM_routers_test = as.matrix(DTM_routers_test)
+TF_mat = DTM_routers_test/rowSums(DTM_routers_test)
+IDF_vec = log(1 + N_test/colSums(DTM_routers_test > 0))
+TFIDF_mat_test = sweep(TF_mat, MARGIN=2, STATS=IDF_vec, FUN="*")
+
+```
+
+PCA on the TFIDF weights for train data:
+
+
+```{r}
+pc_routers_train = prcomp(TFIDF_mat_train, scale=TRUE)
+pve_train = summary(pc_routers_train)$importance[3,]
+plot(pve_train)  
+
+```
+
+
+There is no proper elbow. We are going to consider 140 parameters, which explain close to 60% of the variance
+
+
+Selecting only 140 components for test and 
+making predictions on test set by using model generated principal components:
+
+```{r}
+train = pc_routers_train$x[,1:140]
+test = predict(pc_routers_train,newdata =TFIDF_mat_test )[,1:140]
+
+```
+
+
+Now we have the X's for test and train sorted. We need to get the Y's now. That is the authors name
+
+```{r}
+
+train_authors = file_list_train %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+  { lapply(., head, n=1) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+test_authors = file_list_test %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+  { lapply(., head, n=1) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+
+```
+
+
+Doing multi class logistic regression using the nnet package.
+Fitting the model and checking the accuracy
+
+```{r}
+library(nnet)
+ 
+logistic_fit = nnet::multinom(train_authors~.,data = as.data.frame(train),MaxNWts = 10000)
+predicted.classes <- logistic_fit %>% predict(as.data.frame(test))
+head(predicted.classes)
+
+cat(" The accuracy from Multi Class logistic regression is \n")
+mean(predicted.classes == test_authors)
+
+```
+
+The accuracy for Logistic Regression is 39.7%
+
+
+Fitting a Random Forest model
+
+
+```{r}
+library(randomForest)
+rf_fit = randomForest(as.factor(train_authors)~.,data =as.data.frame(train),ntree = 1000, mtry =  50, importance = TRUE)
+rf_predicted = predict(rf_fit,newx = test, type = 'response')
+cat(" The accuracy from Random Forests is \n")
+mean(rf_predicted == test_authors)
+
+
+```
+
+
+The accuracy for Random Forests is 66.6%
+
+
+
+Fitting a Naive Bayes Model
+
+```{r}
+library (naivebayes)
+
+nb_fit =naive_bayes(as.factor(train_authors) ~., data=as.data.frame(train))
+nb_pred = predict(nb_fit,test)
+
+cat(" The accuracy from Naive Bayes Model is \n")
+mean(nb_pred == test_authors)
+
+
+```
+
+The accuracy for Naive Bayes Models are is 46.5%
+
+
+
+Conclusion:
+
+We see that the best model to predict the authors is random forests and we can predict the correct author with an accuracy of 67%
+
+
+# QUESTION 6 - ASSOCIATION RULE MINING
+
+
+OPENING THE FILE
+```{r}
+rm(list=ls())
+setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data")
+filename = 'groceries.txt'
+groceries_raw = read.csv(filename, header = FALSE)
+
+head(groceries_raw)
+```
+
+LOADING THE IMPORTANT LIBRARIES
+
+```{r}
+library(tidyverse)
+library(arules)  # has a big ecosystem of packages built around it
+library(arulesViz)
+
+```
+
+
+Getting the dataframe to the format required
+
+```{r}
+groceries_raw$basket = rownames(groceries_raw)
+
+
+df1 =groceries_raw[,c(1,5)]
+colnames(df1) <- c("items","basket")
+df2 =groceries_raw[,c(2,5)]
+colnames(df2) <- c("items","basket")
+df3 =groceries_raw[,c(3,5)]
+colnames(df3) <- c("items","basket")
+df4 =groceries_raw[,c(4,5)]
+colnames(df4) <- c("items","basket")
+
+
+groceries <- rbind(df1,df2,df3,df4)
+groceries = groceries[groceries$items != '',]
+na.omit(groceries)
+```
+
+
+Top 20 items in any basket
+
+```{r}
+groceries$items %>%
+  summary(., maxsum=Inf) %>%
+  sort(., decreasing=TRUE) %>%
+  head(., 20) %>%
+  barplot(., las=2, cex.names=0.6,ylab="Frequency", main = 'Top 20 items by Frequency')
+```
+
+
+## Getting the variables into the transactions class
+
+```{r}
+groceries_new = split(x=groceries$items, f=groceries$basket)
+groceries_new[[1]]
+grocery_trans = as(groceries_new, "transactions")
+
+```
+
+## Getting all the rules with a support of .01 and confidence .05
+
+```{r}
+basketrules = apriori(grocery_trans, 
+                     parameter=list(support=.005, confidence=.05))
+
+arules::inspect(basketrules)
+
+```
+
+## Top 15 combinations of items which are usually bought together (Have high lift)
+
+```{r}
+arules::inspect(head(sort(basketrules, by = 'lift', decreasing = TRUE),15))
+```
+
+We see fruits mostly repeating. If people are buying one type of fruit, they most probably are going to buy other kinds of fruits as well. Hence it is a good idea to have all the fruits placed together
+
+
+## What are people buying along with the rolls/buns:
+
+Earlier we saw that rolls/buns are the second most frequently bought items. So now we are seeing what are people buying along with rolls/buns.
+
+```{r}
+rollsbuns_basket =  apriori (grocery_trans, parameter=list (supp=0.001,conf = 0.001,minlen = 2), appearance = list(default="lhs",rhs="rolls/buns"))
+
+arules::inspect(head(sort(rollsbuns_basket, by = 'lift', decreasing = TRUE),15))
+
+plot(head(rollsbuns_basket, n = 15, by = "lift"), method = 'graph', measure  = c("lift"))
+
+
+```
+
+We see that along with rolls/buns people tend to buy soda, sausages, cheeses more. So we should have the meat and cheeses sections close by the bakery section
+
+
+## What are people buying the shopping bags for:
+
+Earlier we saw that shopping bags are in the top 20 most frequently bought items. Let's checkout what these shoppig bags are for
+
+```{r}
+shoppingbags_basket =  apriori (grocery_trans, parameter=list (supp=0.001,conf = 0.001,minlen = 2), appearance = list(default="lhs",rhs="shopping bags"))
+
+arules::inspect(head(sort(shoppingbags_basket, by = 'lift', decreasing = TRUE),15))
+
+plot(head(shoppingbags_basket, n = 15, by = "lift"), method = 'graph', measure  = c("lift"))
+
+
+```
+
+People who buy cakes, hygiene articles, pot plants etc tend to buy shopping bags with them. Placing shopping bags along the aisles which have these items is recommended
+
+
+
+
+## Exploring the baskets which has citrus fruits
+
+
+```{r}
+citrus_basket =  apriori (grocery_trans, parameter=list (supp=0.001,conf = 0.001,minlen = 2), appearance = list(default="lhs",rhs="citrus fruit"))
+
+arules::inspect(head(sort(citrus_basket, by = 'lift', decreasing = TRUE),15))
+
+plot(head(citrus_basket, n = 15, by = "lift"), method = 'graph', measure  = c("lift"))
+
+
+```
+
+We see that there are high chances of having beef/turkey with citrus fruits in the same basket. This is interesting, as citrus doesn't go well with either of those meets
+
+
+
+Plotting the assosciation rules
+
+```{r}
+
+
+plot(basketrules, by = "lift", method = 'graph')
+
+
+```
+
+
+
