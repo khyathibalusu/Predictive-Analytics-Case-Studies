@@ -237,6 +237,7 @@ ggplot(strybins_groupby,aes(x=strybins,y = mean_rent,fill=factor(green_rating)))
 
 From the chart above we can see that for a few bins, green houses have a premium and for a few bins they don't. Hence the excel guru should have taken care of this fact as well.
 
+### CONCLUSION
 
 In conclusion, there are a lot of factors which can impact the rent of the building such as the Neighborhood, Building quality (class), Amenities planned etc have not been provided. Hence it is a tough call to make. 
 
@@ -571,7 +572,7 @@ library(quantmod)
 library(foreach)
 ```
 
-### **Portfolio 1:**
+### **Portfolio 1: 'Aggressive Portfolio'**
 ### Modern Portfolio Theory like all investment theories attempts to maximize the expected rate of return while minimizing the risk. The portfolio chosen here relies on the principles discussed in 'A Random Walk down Wall Street by Burton Malkiel. A percentage of the portfolio is invested in Developed Markets (Germany, UK, Japan) Emerging Markets (India, China). This is to prevent home bias and to diversify the holdings. The portfolio would qualify as Aggresive with the following distribution
 ### US Equity(VTI) - 35% 
 ### Developed Markets(VEA) - 27%
@@ -639,7 +640,7 @@ perc_95
 ```
 ### As stated, Monte-carlo simulation of 1000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -4.932%.
 
-### **Portfolio2**
+### **Portfolio2: 'Safe portfolio'**
 ### The Golden butterfly is a portfolio developed by Tyler, an anonymous developer of https://portfoliocharts.com/ that gained some traction, in the investment circles as an alternative to Ray Dalio's 'All Weather Portfolio'. Although the author claims the Golden Butterfly is suited for wealth accumulation over all time frames, the heavily weighted bonds and commodity would make this ideal for managing retirement account. This would qualify as a Safe portfolio and the expected VaR value is less than the 1st portfolio. Below's the distribution for Golden Butterfly.
 ##Large Cap Blend(IWD) - 20%
 ##Small Cap Value(JKL) - 20%
@@ -693,7 +694,7 @@ quantile(pl_perc,p=0.05)
 
 ### A Monte-carlo simulation of 5000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -2.293%. This being a safe portfolio, the VAR observed turned to be lesser than VAR of Portfolio1, as expected.
 
-### **Portfolio3**
+### **Portfolio3:'Diverse portfolio'**
 ### A custom built portfolio : I put together a portfolio that would be simple and provide diversification in terms of asset classes (Stocks vs Bonds) and Geography (US vs International). For this portfolio, the distribution is
 ##US Stocks(SPY) - 60%
 ##International Stocks(SCHC) - 30%
