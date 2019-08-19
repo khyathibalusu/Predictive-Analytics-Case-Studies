@@ -788,7 +788,7 @@ cat('There is a 5% probability that we are loosing', loss_fivepercent, "USD with
 ```
 ## There is a 5% probability that we are loosing -5131.329 USD with an aggressive portfolio
 ```
-### As stated, Monte-carlo simulation of 5000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -5076USD.
+
 
 ### **Portfolio2: 'Safe portfolio'**
 ### The Golden butterfly is a portfolio developed by Tyler, an anonymous developer of https://portfoliocharts.com/ that gained some traction, in the investment circles as an alternative to Ray Dalio's 'All Weather Portfolio'. Although the author claims the Golden Butterfly is suited for wealth accumulation over all time frames, the heavily weighted bonds and commodity would make this ideal for managing retirement account. This would qualify as a Safe portfolio and the expected VaR value is less than the 1st portfolio. Below's the distribution for Golden Butterfly.
@@ -820,7 +820,6 @@ cat('There is a 5% probability that we are loosing', loss_fivepercent, "USD with
 ## There is a 5% probability that we are loosing -2345.507 USD with an safe portfolio
 ```
 
-### A Monte-carlo simulation of 5000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -2322USD . This being a safe portfolio, the VAR observed turned to be lesser than VAR of Portfolio1, as expected.
 
 ### **Portfolio3:'Diverse portfolio'**
 ### A custom built portfolio : I put together a portfolio that would be simple and provide diversification in terms of asset classes (Stocks vs Bonds) and Geography (US vs International). For this portfolio, the distribution is
@@ -852,4 +851,4 @@ cat('There is a 5% probability that we are loosing', loss_fivepercent, "USD with
 ## There is a 5% probability that we are loosing -4846.947 USD with a diverse portfolio
 ```
 
-### A Monte-carlo simulation of 5000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -4993USD. This was a diverse portfolio in terms of asset classes and was aggressive when compared to portfolio2. So, the VAR turned out to be higher. The reason for the VAR to be close to that of Portfolio1 could be because both the portfolios, though they have a different mix in terms of the type of stocks, they have a similar weight (90%) on stocks.
+### This was a diverse portfolio in terms of asset classes and was aggressive when compared to portfolio2. So, the VAR turned out to be higher. The reason for the VAR to be close to that of Portfolio1 could be because both the portfolios, though they have a different mix in terms of the type of stocks, they have a similar weight (90%) on stocks.
