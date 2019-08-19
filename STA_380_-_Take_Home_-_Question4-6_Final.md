@@ -862,7 +862,7 @@ mean(rf_predicted == test_authors)
 ```
 
 
-### The accuracy for Random Forests is 67.5%
+### The accuracy for Random Forests is 66.7%
 
 
 
