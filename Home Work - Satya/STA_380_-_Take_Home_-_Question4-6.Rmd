@@ -14,7 +14,7 @@ output:
 
 Reading the file
 
-```{r }
+```{r, results = "hide" }
 rm(list = ls())
 library(ggplot2)
 setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data")
@@ -86,7 +86,7 @@ wss
 
 from the elbow chart we saw that k=9 is the good option to consider. Getting the clusters for k = 9
 
-```{r}
+```{r, results = "hide" }
 
 cluster_cnt = 9
 clust1 = kmeans(scaled_data, cluster_cnt, nstart=50,iter.max = 20)
@@ -519,7 +519,7 @@ head(groceries_raw)
 
 LOADING THE IMPORTANT LIBRARIES
 
-```{r}
+```{r, results = "hide" }
 library(tidyverse)
 library(arules)  # has a big ecosystem of packages built around it
 library(arulesViz)
@@ -529,7 +529,7 @@ library(arulesViz)
 
 Getting the dataframe to the format required
 
-```{r}
+```{r, results = "hide" }
 groceries_raw$basket = rownames(groceries_raw)
 
 
@@ -571,7 +571,7 @@ grocery_trans = as(groceries_new, "transactions")
 
 ## Getting all the rules with a support of .01 and confidence .05
 
-```{r}
+```{r, results = "hide" }
 basketrules = apriori(grocery_trans, 
                      parameter=list(support=.005, confidence=.05))
 
@@ -643,7 +643,7 @@ We see that there are high chances of having beef/turkey with citrus fruits in t
 
 Plotting the assosciation rules
 
-```{r}
+```{r, results = "hide" }
 
 
 plot(basketrules, by = "lift", method = 'graph')
