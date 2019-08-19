@@ -1,0 +1,189 @@
+
+## Portfolio Modelling
+
+Portfolio modelling question
+
+
+Installing the required packages
+
+```{r}
+rm(list = ls())
+library(mosaic)
+library(quantmod)
+library(foreach)
+
+```
+
+Getting three sets of ETFs
+
+```{r}
+
+# The safe portfolio. Government bonds, oil& gas, consumer staples
+myetf1 = c("GOVT", "USO", "VDC")
+getSymbols(myetf1,from = "2014-08-01")
+
+# The aggressive portfolio. High yield bonds, emerging markets, China etfs
+myetf2 = c("ANGL", "EBND", "PGJ")
+getSymbols(myetf2,from = "2014-08-01")
+
+# The diversive portfolio. Inflation protected bonds, High yield bonds, Precious metals
+myetf3 = c("IPE", "GHYG", "PPLT")
+getSymbols(myetf3,from = "2014-08-01")
+
+
+```
+
+Adjusting for Splits and Dividends
+
+```{r}
+
+# Safe Portfolio
+GOVTa = adjustOHLC(GOVT)
+USOa = adjustOHLC(USO)
+VDCa = adjustOHLC(VDC)
+
+# Aggressive Portfolio
+ANGLa = adjustOHLC(ANGL)
+EBNDa = adjustOHLC(EBND)
+PGJa = adjustOHLC(PGJ)
+
+# Diverse Portfolio
+IPEa = adjustOHLC(IPE)
+GHYGa = adjustOHLC(GHYG)
+PPLTa = adjustOHLC(PPLT)
+
+
+```
+
+
+Getting the close to close returns for each portfolio
+```{r}
+# Safe Portfolio
+pf1_returns = cbind(	ClCl(GOVTa),
+								ClCl(USOa),
+								ClCl(VDCa))
+pf1_returns = as.matrix(na.omit(pf1_returns))
+dim(pf1_returns)
+
+
+# Aggressive Portfolio
+pf2_returns = cbind(	ClCl(ANGLa),
+								ClCl(EBNDa),
+								ClCl(PGJa))
+pf2_returns = as.matrix(na.omit(pf2_returns))
+dim(pf1_returns)
+
+
+# Diverse Portfolio
+pf3_returns = cbind(	ClCl(IPEa),
+								ClCl(GHYGa),
+								ClCl(PPLTa))
+pf3_returns = as.matrix(na.omit(pf3_returns))
+dim(pf1_returns)
+
+
+```
+
+Bootstrapping and Monte Carlo simulation for the Safe Portfolio. Calculating the VaR(value at Risk) for 5% level
+
+
+
+
+
+```{r}
+
+set.seed(123)
+initial_wealth = 10000
+sim1 = foreach(i=1:3000, .combine='rbind') %do% {
+	total_wealth = initial_wealth
+	weights = c(0.3, 0.4, 0.3)
+	holdings = weights * total_wealth
+	n_days = 20
+	wealthtracker = rep(0, n_days)
+	for(today in 1:n_days) {
+		return.today = resample(pf1_returns, 1, orig.ids=FALSE)
+		holdings = holdings + holdings*return.today
+		total_wealth = sum(holdings)
+		wealthtracker[today] = total_wealth
+		holdings = weights*total_wealth
+		
+	}
+	wealthtracker
+}
+
+#head(sim1)
+hist(sim1[,n_days], 25)
+
+loss_fivepercent = quantile(sim1[,n_days]- initial_wealth, 0.05)
+cat('There is a 5% probability that we are loosing', loss_fivepercent, "USD with a safe portfolio")
+
+
+```
+
+
+
+Bootstrapping and Monte Carlo simulation for the Aggressive Portfolio. Calculating the VaR(value at Risk) for 5% level
+
+```{r}
+
+set.seed(123)
+initial_wealth = 10000
+sim2 = foreach(i=1:3000, .combine='rbind') %do% {
+	total_wealth = initial_wealth
+	weights = c(0.3, 0.4, 0.3)
+	holdings = weights * total_wealth
+	n_days = 20
+	wealthtracker = rep(0, n_days)
+	for(today in 1:n_days) {
+		return.today = resample(pf2_returns, 1, orig.ids=FALSE)
+		holdings = holdings + holdings*return.today
+		total_wealth = sum(holdings)
+		wealthtracker[today] = total_wealth
+		holdings = weights*total_wealth
+	}
+	wealthtracker
+}
+
+#head(sim2)
+hist(sim2[,n_days], 25)
+
+loss_fivepercent = quantile(sim2[,n_days]- initial_wealth, 0.05)
+cat('There is a 5% probability that we are loosing', loss_fivepercent, "USD with an aggressive portfolio")
+
+
+```
+
+
+Bootstrapping and Monte Carlo simulation for the Diversed Portfolio. Calculating the VaR(value at Risk) for 5% level
+
+```{r}
+
+set.seed(123)
+initial_wealth = 10000
+sim3 = foreach(i=1:3000, .combine='rbind') %do% {
+	total_wealth = initial_wealth
+	weights = c(0.3, 0.4, 0.3)
+	holdings = weights * total_wealth
+	n_days = 20
+	wealthtracker = rep(0, n_days)
+	for(today in 1:n_days) {
+		return.today = resample(pf3_returns, 1, orig.ids=FALSE)
+		holdings = holdings + holdings*return.today
+		total_wealth = sum(holdings)
+		wealthtracker[today] = total_wealth
+		holdings = weights*total_wealth
+	}
+	wealthtracker
+}
+
+#head(sim3)
+hist(sim3[,n_days], 25)
+
+loss_fivepercent = quantile(sim3[,n_days]- initial_wealth, 0.05)
+cat('There is a 5% probability that we are loosing', loss_fivepercent, "USD with a diversed portfolio")
+
+
+```
+
+
+

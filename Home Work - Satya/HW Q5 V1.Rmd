@@ -1,0 +1,310 @@
+
+
+IMPORTING NECESSARY LIBRARIES
+
+```{r}
+rm(list = ls())
+
+library(tm) 
+library(magrittr)
+library(slam)
+library(proxy)
+library(tibble)
+library(dplyr)
+```
+
+
+SETTING THE READER FUNCTION AND WORKING DIRECTORY
+```{r}
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)), 
+							id=fname, language='en') }
+
+setwd("D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data/ReutersC50")
+
+```
+
+Getting the names of all 2500 files. First we got the list of all 50 directories and then got the list of the .txt files in them.
+At the end we applied the reader function on these files
+
+```{r}
+
+## For train data
+ 
+dirs_list_train = list.dirs('D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data/ReutersC50/C50train',recursive = FALSE)
+
+file_list_train = character()
+
+for(i in dirs_list_train){
+  xx = Sys.glob(paste(i,'/*txt',sep = ''))
+  file_list_train = c(xx,file_list_train)
+}
+
+routers_train = lapply(file_list_train, readerPlain) 
+
+
+## For test data
+ 
+dirs_list_test = list.dirs('D:/Summer Semester/Intro to Predictive Modelling/Unsupervised/data/ReutersC50/C50test',recursive = FALSE)
+
+file_list_test = character()
+
+for(i in dirs_list_test){
+  xx = Sys.glob(paste(i,'/*txt',sep = ''))
+  file_list_test = c(xx,file_list_test)
+}
+
+routers_test = lapply(file_list_test, readerPlain) 
+
+
+```
+
+
+Cleaning up file names
+
+```{r}
+
+## Train files
+
+mynames_train = file_list_train %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+head(mynames_train)
+
+## Test files
+
+mynames_test = file_list_test %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+head(mynames_test)
+
+```
+
+Renaming the articles and creating a corpus of all documents
+
+```{r}
+## For train data
+
+names(routers_train) = mynames_train
+documents_raw_train = Corpus(VectorSource(routers_train))
+
+
+## For test data
+
+names(routers_test) = mynames_test
+documents_raw_test = Corpus(VectorSource(routers_test))
+
+
+```
+
+
+Cleaning the documents
+
+```{r}
+## For train data
+
+my_documents_train = documents_raw_train
+my_documents_train = tm_map(my_documents_train, content_transformer(tolower)) # make everything lowercase
+my_documents_train = tm_map(my_documents_train, content_transformer(removeNumbers)) # remove numbers
+my_documents_train = tm_map(my_documents_train, content_transformer(removePunctuation)) # remove punctuation
+my_documents_train = tm_map(my_documents_train, content_transformer(stripWhitespace)) ## remove excess white-space
+my_documents_train = tm_map(my_documents_train, content_transformer(removeWords), stopwords("en"))
+
+
+
+## For test data
+
+my_documents_test = documents_raw_test
+my_documents_test = tm_map(my_documents_test, content_transformer(tolower)) # make everything lowercase
+my_documents_test = tm_map(my_documents_test, content_transformer(removeNumbers)) # remove numbers
+my_documents_test = tm_map(my_documents_test, content_transformer(removePunctuation)) # remove punctuation
+my_documents_test = tm_map(my_documents_test, content_transformer(stripWhitespace)) ## remove excess white-space
+my_documents_test = tm_map(my_documents_test, content_transformer(removeWords), stopwords("en"))
+
+```
+
+
+
+Creating the document term matrix and removing sparse data from the train. We are removing terms with count 0 in more than 90% of the docs
+
+```{r}
+## For train data
+DTM_routers_train = DocumentTermMatrix(my_documents_train)
+DTM_routers_train
+
+DTM_routers_train = removeSparseTerms(DTM_routers_train, 0.90)
+DTM_routers_train
+
+
+```
+The entries fell from 80Million to 700K
+
+
+Creating the document term matrix for test data now
+```{r}
+
+
+## For test data
+#DTM_routers_test = DocumentTermMatrix(my_documents_test)
+#DTM_routers_test
+
+DTM_routers_test = DocumentTermMatrix(my_documents_test, control = list
+               (dictionary=Terms(DTM_routers_train)) )
+
+DTM_routers_test
+
+
+```
+
+
+
+
+Getting the TF-IDF matrix
+
+```{r}
+## For train data
+N_train = nrow(DTM_routers_train)
+DTM_routers_train = as.matrix(DTM_routers_train)
+TF_mat = DTM_routers_train/rowSums(DTM_routers_train)
+IDF_vec = log(1 + N_train/colSums(DTM_routers_train > 0))
+TFIDF_mat_train = sweep(TF_mat, MARGIN=2, STATS=IDF_vec, FUN="*")  
+
+
+## For test data
+N_test = nrow(DTM_routers_test)
+DTM_routers_test = as.matrix(DTM_routers_test)
+TF_mat = DTM_routers_test/rowSums(DTM_routers_test)
+IDF_vec = log(1 + N_test/colSums(DTM_routers_test > 0))
+TFIDF_mat_test = sweep(TF_mat, MARGIN=2, STATS=IDF_vec, FUN="*")
+
+```
+
+PCA on the TFIDF weights for train data:
+
+
+```{r}
+pc_routers_train = prcomp(TFIDF_mat_train, scale=TRUE)
+pve_train = summary(pc_routers_train)$importance[3,]
+plot(pve_train)  
+
+```
+
+
+There is no proper elbow. We are going to consider 140 parameters, which explain close to 60% of the variance
+
+
+Selecting only 140 components for test and 
+making predictions on test set by using model generated principal components:
+
+```{r}
+train = pc_routers_train$x[,1:140]
+test = predict(pc_routers_train,newdata =TFIDF_mat_test )[,1:140]
+
+```
+
+
+Now we have the X's for test and train sorted. We need to get the Y's now. That is the authors name
+
+```{r}
+
+train_authors = file_list_train %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+  { lapply(., head, n=1) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+test_authors = file_list_test %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+  { lapply(., head, n=1) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+
+
+```
+
+
+Doing multi class logistic regression using the nnet package.
+Fitting the model and checking the accuracy
+
+```{r}
+library(nnet)
+ 
+logistic_fit = nnet::multinom(train_authors~.,data = as.data.frame(train),MaxNWts = 10000)
+predicted.classes <- logistic_fit %>% predict(as.data.frame(test))
+head(predicted.classes)
+
+cat(" The accuracy from Multi Class logistic regression is \n")
+mean(predicted.classes == test_authors)
+
+```
+
+The accuracy for Logistic Regression is 39.7%
+
+
+Fitting a Random Forest model
+
+
+```{r}
+library(randomForest)
+rf_fit = randomForest(as.factor(train_authors)~.,data =as.data.frame(train),ntree = 1000, mtry =  50, importance = TRUE)
+rf_predicted = predict(rf_fit,newx = test, type = 'response')
+cat(" The accuracy from Random Forests is \n")
+mean(rf_predicted == test_authors)
+
+
+```
+
+
+The accuracy for Random Forests is 66.6%
+
+
+Fitting a Gradient Boosting Model
+
+
+
+```{r}
+library(gbm)
+gbm_fit = gbm(as.factor(train_authors)~.,data =as.data.frame(train),n.trees = 3000, shrinkage =  0.1, distribution = 'multinomial')
+gbm_pred_probs = predict(gbm_fit,newdata  = as.data.frame(test),n.trees = 3000, type = 'response')
+gbm_highest_probs = apply(gbm_pred_probs,1,which.max)
+gbm_predicted = colnames(gbm_pred_probs)[gbm_highest_probs]
+
+cat(" The accuracy from Gradient Boosting Model is \n")
+mean(gbm_predicted == test_authors)
+
+
+```
+
+The accuracy for Gradient Boosting Models are is 35.6%
+
+
+
+Fitting a Naive Bayes Model
+
+```{r}
+library (naivebayes)
+
+nb_fit =naive_bayes(as.factor(train_authors) ~., data=as.data.frame(train))
+nb_pred = predict(nb_fit,test)
+
+cat(" The accuracy from Naive Bayes Model is \n")
+mean(nb_pred == test_authors)
+
+
+```
+
+The accuracy for Naive Bayes Models are is 46.5%
+
+
+
+Conclusion:
+
+We see that the best model to predict the authors is random forests and we can predict the correct author with an accuracy of 67%
