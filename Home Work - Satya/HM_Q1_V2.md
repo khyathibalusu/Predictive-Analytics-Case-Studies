@@ -1,4 +1,4 @@
-HM2 Q1
+﻿HM2 Q1
 ================
 
 ## Reading the file
@@ -72,7 +72,7 @@ Challenging the removal of buildings with occupancy rate less than 10%
 plot(leasing_rate,Rent)
 ```
 
-![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-2-1.png)
 
 From the scatter plot above, we can see that there isn’t anything weird
 going on in terms of rent in the buildings with occupany less than 10%.
@@ -94,7 +94,7 @@ green$class = ifelse(green$class_a == 1, 'Class A', ifelse(green$class_b == 1, '
 boxplot(Rent~green$class)
 ```
 
-![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-3-1.png)
 
 From the box plot above we can see that the rent is different for
 different classes.With buildings in Class A having the highest rent and
@@ -118,7 +118,7 @@ ggplot(class_groupby,aes(x=class,y = mean_rent,fill=factor(green_rating)))+
   labs(fill = 'Green/Non Green')
 ```
 
-![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-4-1.png)
 
 From the graph above we can see that for high quality buildings, the
 average rent for green buildings is less than the average rent of non
@@ -149,7 +149,7 @@ ggplot(green)+
   labs(fill = 'Green/Non Green')
 ```
 
-![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-5-1.png)
 
 From the charts above we can see that our hypothesis is confirmed. There
 are more number of non green buildings which are older than 50 years
@@ -174,7 +174,7 @@ ggplot(agebins_groupby,aes(x=agebins,y = mean_rent,fill=factor(green_rating)))+
   labs(fill = 'Green/Non Green')
 ```
 
-![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-6-1.png)
 
 From the chart above, we can see that for younger buildings, non green
 buildings have a premium and as the age of the building increases the
@@ -202,7 +202,7 @@ ggplot(amenities_groupby,aes(x=amenities, mean_rent,fill=factor(green_rating)))+
   labs(fill = 'Green/Non Green')
 ```
 
-![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-7-1.png)
 
 From the chart above, we can see that with amenities provided the green
 and non green buildings will get almost the same rent
@@ -231,7 +231,7 @@ ggplot(green)+
   labs(fill = 'Green/Non Green')
 ```
 
-![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-8-1.png)
 
 Now let’s bucket the buildings based on cluster rent
 
@@ -251,7 +251,7 @@ ggplot(nbhdbins_groupby,aes(x=nbhdbins,y = mean_rent,fill=factor(green_rating)))
   labs(fill = 'Green/Non Green')
 ```
 
-![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-9-1.png)
 
 From the chart above, we can see that based on the neighborhood the East
 Cesar Chavez is in, the premium for Green buildings over Non Green
@@ -279,7 +279,7 @@ ggplot(strybins_groupby,aes(x=strybins,y = mean_rent,fill=factor(green_rating)))
   labs(fill = 'Green/Non Green')
 ```
 
-![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](HM_Q1_V2_files/figure-gfm/unnamed-chunk-10-1.png)
 
 From the chart above we can see that for a few bins, green houses have a
 premium and for a few bins they don’t. Hence the excel guru should have
