@@ -4,7 +4,6 @@ author: "Khyathi Balusu(kb42582)"
 date: "8/13/2019"
 output:
   html_document:
-    df_print: paged
     keep_md: yes
   pdf_document: default
 ---
