@@ -1,0 +1,209 @@
+---
+title: "Portfolio"
+author: "Aadithya"
+date: "8/16/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,include=FALSE}
+rm(list=ls())
+library(mosaic)
+library(quantmod)
+library(foreach)
+```
+
+##Portfolio 1:
+### Modern Portfolio Theory like all investment theories attempts to maximize the expected rate of return while minimizing the risk. The portfolio chosen here relies on the principles discussed in 'A Random Walk down Wall Street by Burton Malkiel. A percentage of the portfolio is invested in Developed Markets (Germany, UK, Japan) Emerging Markets (India, China). This is to prevent home bias and to diversify the holdings. The portfolio would qualify as Aggresive with the following distribution
+##US Equity(VTI) - 35% 
+##Developed Markets(VEA) - 27%
+##Emerging Markets(VWO) - 18%
+##Dividend Stocks(VIG) - 9%
+##Bonds(SCHZ) - 11%
+
+```{r}
+portfolio1 = c("VTI", "VEA", "VWO","VIG","SCHZ")
+```
+
+##Obtain the data from 30th April 2014
+```{r}
+getSymbols(portfolio1,from = "2014-04-30")
+```
+
+
+## Get close to close of an object in the portfolio
+```{r}
+for(ticker in portfolio1) {
+  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+
+all_returns = cbind(ClCl(VTIa),
+                     ClCl(VEAa),
+                     ClCl(VWOa),
+                     ClCl(VIGa),
+                    ClCl(SCHZa))
+
+all_returns = as.matrix(na.omit(all_returns))
+```
+
+
+## Initial wealth is set to hundred thousand dollars and for a 20-day period, there are three steps being done. (1) calculate returns (2) sum of holdings is updated and (3) re-assign the holdings in proportion of the original weights of the stocks in the portfolio. This is done for everyday of 20 days and repeated for 1000 times.
+```{r}
+initial_wealth = 100000
+sim1 = foreach(i=1:1000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.35, 0.27, 0.18, 0.09, 0.11)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    holdings = weights * total_wealth
+  }
+  wealthtracker
+}
+
+```
+
+## Sample result is as follows:
+```{r,echo=FALSE}
+head(sim1)
+```
+
+## The Vaue at risk is calculated and a histogram plot shows its distribution.
+```{r,echo=FALSE}
+avg=mean(sim1[,n_days])
+pl_perc=((sim1[,n_days]- initial_wealth)/initial_wealth)*100
+hist(pl_perc, breaks=30)
+perc_95=quantile(pl_perc,p=0.05)
+perc_95
+```
+###As stated, Monte-carlo simulation of 1000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -4.932%.
+
+## Portfolio2
+###The Golden butterfly is a portfolio developed by Tyler, an anonymous developer of https://portfoliocharts.com/ that gained some traction, in the investment circles as an alternative to Ray Dalio's 'All Weather Portfolio'. Although the author claims the Golden Butterfly is suited for wealth accumulation over all time frames, the heavily weighted bonds and commodity would make this ideal for managing retirement account. This would qualify as a Safe portfolio and the expected VaR value is less than the 1st portfolio. Below's the distribution for Golden Butterfly.
+##Large Cap Blend(IWD) - 20%
+##Small Cap Value(JKL) - 20%
+##Total Bond(AGG) - 40%
+##Gold -20% 
+
+```{r}
+portfolio2 = c("IWD","JKL","AGG","GLD")
+```
+
+```{r,include=FALSE}
+getSymbols(portfolio2,from = "2014-04-30")
+
+
+for(ticker in portfolio2) {
+  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+
+all_returns = cbind(ClCl(IWDa),
+                    ClCl(JKLa),
+                    ClCl(AGGa),
+                    ClCl(GLDa))
+
+head(all_returns)
+all_returns = as.matrix(na.omit(all_returns))
+
+
+#Bootstrap
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.2, 0.2, 0.4,0.2)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    holdings = weights * total_wealth
+  }
+  wealthtracker
+}
+
+
+head(sim1)
+hist(sim1[,n_days], 25)
+
+```
+
+```{r}
+# Profit/loss%
+avg=mean(sim1[,n_days])
+pl_perc=((sim1[,n_days]- initial_wealth)/initial_wealth)*100
+hist(pl_perc, breaks=30)
+quantile(pl_perc,p=0.05)
+```
+
+###A Monte-carlo simulation of 5000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -2.293%. This being a safe portfolio, the VAR observed turned to be lesser than VAR of Portfolio1, as expected.
+
+##Portfolio3
+##A custom built portfolio : I put together a portfolio that would be simple and provide diversification in terms of asset classes (Stocks vs Bonds) and Geography (US vs International). For this portfolio, the distribution is
+##US Stocks(SPY) - 60%
+##International Stocks(SCHC) - 30%
+##Bonds(BND) -10% 
+
+```{r}
+portfolio3 = c("BND","SPY","SCHC") 
+```
+
+```{r,include=FALSE}
+getSymbols(portfolio3,from = "2014-04-30")
+
+for(ticker in portfolio3) {
+  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+
+all_returns = cbind(ClCl(BNDa),
+                    ClCl(SPYa),
+                    ClCl(SCHCa))
+
+head(all_returns)
+all_returns = as.matrix(na.omit(all_returns))
+
+#Bootstrap
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.1,0.6,0.3)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    holdings = weights * total_wealth
+  }
+  wealthtracker
+}
+
+
+head(sim1)
+hist(sim1[,n_days], 25)
+```
+
+```{r}
+# Profit/loss%
+avg=mean(sim1[,n_days])
+pl_perc=((sim1[,n_days]- initial_wealth)/initial_wealth)*100
+hist(pl_perc, breaks=30)
+quantile(pl_perc,p=0.05)
+```
+
+###A Monte-carlo simulation of 10000 samples was done and the VAR for the above portfolio at a 5% level for a 20 day period was found to be -4.749%. This was a diverse portfolio in terms of asset classes and was aggressive when compared to portfolio2. So, the VAR turned out to be higher. The reason for the VAR to be close to that of Portfolio1 could be because both the portfolios, though they have a different mix in terms of the type of stocks, they have a similar weight (90%) on stocks.
