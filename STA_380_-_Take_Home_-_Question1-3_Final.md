@@ -623,7 +623,7 @@ If you have meetings scheduled and don't want be late for them, better not take 
 
 ### **AIRLINES TO CONSIDER/NOT CONSIDER FOR PEOPLE WITH WEEKEND TRIPS:**
 
-If the flights arrive on a friday or during Saturday morning before 11:00 hrs, most probably it has people who are planning on weekend trips
+If the flights arrive on a friday or during Saturday morning before 11:00 hrs, most probably it has people who are on a visting that city for the weekend
 
 In this case, the last thing when you want to happen is a flight cancellation.Hence for this analysis we are looking at the flight cancellations
 
